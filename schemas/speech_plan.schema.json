@@ -1,1 +1,196 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TeachIntent Speech Plan",
+  "description": "Structural contract for the Hy3-generated pedagogical speech plan (V, D). Source of truth: docs/speech_plan_schema.md (Schema Version 1.0.0-rc.3). Per Rule 15, this file carries structural constraints (required fields, types, enums, const, minItems, lengths, object shape, additionalProperties:false); cross-field semantic constraints (Rules 1/2/3/5/8/11/12) are enforced by the Pydantic/custom validator layer in src/teachintent/models/speech_plan.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "verbal_plan", "delivery_plan"],
+  "properties": {
+    "schema_version": {
+      "$comment": "Rule 14 (schema version exactness): for this release schema_version must equal 1.0.0-rc.3. Independent from the input schema version 1.0.0-rc.2 by design.",
+      "type": "string",
+      "const": "1.0.0-rc.3"
+    },
+    "verbal_plan": {
+      "$comment": "Section 5: the actual teacher/tutor verbal realization. Segment array order is canonical.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["segments"],
+      "properties": {
+        "segments": {
+          "$comment": "Rule 10: at least one non-empty text segment. Rule 1 (segment_id uniqueness) is a cross-field semantic constraint handled by the Pydantic layer.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["segment_id", "text"],
+            "properties": {
+              "segment_id": { "$ref": "#/$defs/segmentId" },
+              "text": { "$ref": "#/$defs/nonEmptyText" }
+            }
+          }
+        }
+      }
+    },
+    "delivery_plan": {
+      "$comment": "Sections 3.4 / 4.3 and Rule 7: the top-level delivery_plan MAY be empty ({}), meaning no explicit TeachIntent control is motivated. A non-empty delivery_plan must contain 'global' and/or 'segment_overrides'. If 'global' is present it must contain at least one control (minProperties 1); if 'segment_overrides' is present it must contain at least one override (minItems 1).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "global": { "$ref": "#/$defs/globalDelivery" },
+        "segment_overrides": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/segmentOverride" }
+        }
+      },
+      "anyOf": [
+        { "maxProperties": 0 },
+        { "required": ["global"] },
+        { "required": ["segment_overrides"] }
+      ]
+    }
+  },
+  "$defs": {
+    "segmentId": {
+      "$comment": "Section 5.2: pattern ^seg_[0-9]{2,}$. The second pattern is a line-break guard: under declared ECMA-262 semantics 'seg_01\\n' already fails, but the Python re '$' matches before a trailing newline, so the guard keeps the jsonschema Python implementation faithful to the declared semantics. Rule 1 (uniqueness) and Rule 2 (reference integrity) are semantic rules enforced by the Pydantic layer.",
+      "type": "string",
+      "allOf": [
+        { "pattern": "^seg_[0-9]{2,}$" },
+        { "pattern": "^(?!.*[\\n\\r\\u2028\\u2029])" }
+      ]
+    },
+    "nonEmptyText": {
+      "$comment": "Section 5.3: non-empty string containing non-whitespace content.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "styleDescriptor": {
+      "$comment": "Rule 13 (style descriptor normalization) / sections 6.1 and 6.2: attitudinal_tone and emotion are trimmed, single-line strings of 1-64 Unicode characters. Strict-trim interpretation: input carrying leading/trailing whitespace is REJECTED (the producer must supply trimmed values); JSON Schema patterns cannot normalize, so rejection is the only choice consistent across both validation layers. The explicit whitespace class keeps Python re and declared ECMA-262 semantics aligned. Open style descriptor: validators enforce type/format only, never psychological truth.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "allOf": [
+        {
+          "pattern": "^(?:[^ \\t\\n\\r\\f\\v\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]|[^ \\t\\n\\r\\f\\v\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000].*[^ \\t\\n\\r\\f\\v\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000])$"
+        },
+        {
+          "pattern": "^(?!.*[\\n\\r\\u2028\\u2029])"
+        }
+      ]
+    },
+    "globalProsody": {
+      "$comment": "Sections 6.3 and 7: global categorical prosody controls. 'default' is intentionally NOT allowed at the global level (section 8.1). Rule 7: if present, prosody must contain at least one control field (minProperties 1).",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "speaking_rate": {
+          "type": "string",
+          "enum": ["x-slow", "slow", "medium", "fast", "x-fast"]
+        },
+        "pitch_level": {
+          "type": "string",
+          "enum": ["x-low", "low", "medium", "high", "x-high"]
+        },
+        "pitch_range": {
+          "type": "string",
+          "enum": ["x-low", "low", "medium", "high", "x-high"]
+        },
+        "volume": {
+          "type": "string",
+          "enum": ["x-soft", "soft", "medium", "loud", "x-loud"]
+        }
+      }
+    },
+    "segmentProsody": {
+      "$comment": "Section 8.2: segment-level categorical prosody controls. Each enum additionally allows 'default', meaning reset to the renderer/voice default. Rule 11 ('default' is valid only when the same field exists in global prosody) is a cross-field semantic constraint enforced by the Pydantic layer.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "speaking_rate": {
+          "type": "string",
+          "enum": ["default", "x-slow", "slow", "medium", "fast", "x-fast"]
+        },
+        "pitch_level": {
+          "type": "string",
+          "enum": ["default", "x-low", "low", "medium", "high", "x-high"]
+        },
+        "pitch_range": {
+          "type": "string",
+          "enum": ["default", "x-low", "low", "medium", "high", "x-high"]
+        },
+        "volume": {
+          "type": "string",
+          "enum": ["default", "x-soft", "soft", "medium", "loud", "x-loud"]
+        }
+      }
+    },
+    "globalDelivery": {
+      "$comment": "Sections 4.3 and 6: optional utterance-level baseline. Rule 7: 'global' must not be empty (minProperties 1).",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "attitudinal_tone": { "$ref": "#/$defs/styleDescriptor" },
+        "emotion": { "$ref": "#/$defs/styleDescriptor" },
+        "prosody": { "$ref": "#/$defs/globalProsody" }
+      }
+    },
+    "prominenceTarget": {
+      "$comment": "Section 10: local linguistic span that should perceptually stand out. text must be a non-empty string containing at least one non-whitespace character (engineering interpretation: a prominence target must denote an actual linguistic span; section 10.1 says 'non-empty string', tightened here to also reject whitespace-only targets). Rule 5 (exact substring, exactly-once occurrence) and Rule 12 (no duplicates/overlaps) are cross-field semantic constraints enforced by the Pydantic layer.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "level"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "level": {
+          "type": "string",
+          "enum": ["moderate", "strong"]
+        }
+      }
+    },
+    "boundaryAfter": {
+      "$comment": "Section 11: control of the prosodic boundary after a segment. Boundary strength is not equivalent to silence duration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strength"],
+      "properties": {
+        "strength": {
+          "type": "string",
+          "enum": ["none", "x-weak", "weak", "medium", "strong", "x-strong"]
+        }
+      }
+    },
+    "segmentOverride": {
+      "$comment": "Section 8: sparse segment-level override. Rule 4: minProperties 2 enforces at least one actual control besides segment_id. Rule 3 (at most one override per segment) and Rule 8 (contour_shape must not coexist with segment-level pitch_level/pitch_range) are cross-field semantic constraints enforced by the Pydantic layer.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 2,
+      "required": ["segment_id"],
+      "properties": {
+        "segment_id": { "$ref": "#/$defs/segmentId" },
+        "attitudinal_tone": { "$ref": "#/$defs/styleDescriptor" },
+        "emotion": { "$ref": "#/$defs/styleDescriptor" },
+        "prosody": { "$ref": "#/$defs/segmentProsody" },
+        "contour_shape": {
+          "type": "string",
+          "enum": ["level", "rising", "falling", "rise-fall", "fall-rise"]
+        },
+        "prominence_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prominenceTarget" }
+        },
+        "boundary_after": { "$ref": "#/$defs/boundaryAfter" }
+      }
+    }
+  }
+}

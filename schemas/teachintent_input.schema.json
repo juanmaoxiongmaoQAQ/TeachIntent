@@ -1,1 +1,95 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TeachIntent Input Contract",
+  "description": "Structural contract for the TeachIntent input (C, P, L, G) consumed by the Hy3 pedagogical speech planner. Source of truth: docs/problem_definition.md (Document Version 0.3, Input Schema Version 1.0.0-rc.2). Cross-field semantic constraints are NOT handled here; this file covers structural constraints only (Rule 15 division of labor in docs/speech_plan_schema.md applies by analogy).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "output_language",
+    "instructional_content",
+    "pedagogical_context",
+    "learner",
+    "pedagogical_intent"
+  ],
+  "properties": {
+    "schema_version": {
+      "$comment": "problem_definition.md section 4.1: identifies the TeachIntent input schema; independent of the Speech Plan output schema version (which is 1.0.0-rc.3).",
+      "type": "string",
+      "const": "1.0.0-rc.2"
+    },
+    "output_language": {
+      "$comment": "problem_definition.md section 4.2: BCP 47 language tag. The pattern below is a lightweight/common BCP-47 syntax subset for supported TeachIntent languages (zh-CN, en-US, yue-Hant-HK, ...); it is NOT a full BCP-47 validator. The second pattern is a line-break guard neutralizing the Python re '$' trailing-newline quirk so the declared ECMA-262 anchor semantics hold under the jsonschema Python implementation.",
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$"
+        },
+        {
+          "pattern": "^(?!.*[\\n\\r\\u2028\\u2029])"
+        }
+      ],
+      "examples": ["zh-CN", "en-US", "yue-Hant-HK"]
+    },
+    "instructional_content": {
+      "$comment": "problem_definition.md section 4.3: case-level instructional knowledge. content_anchor is the case-level authoritative knowledge reference, not the final spoken transcript.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_anchor"],
+      "properties": {
+        "subject": { "$ref": "#/$defs/nonEmptyString" },
+        "topic": { "$ref": "#/$defs/nonEmptyString" },
+        "content_anchor": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "pedagogical_context": {
+      "$comment": "problem_definition.md section 4.4: minimal single-turn teaching situation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario"],
+      "properties": {
+        "scenario": { "$ref": "#/$defs/nonEmptyString" },
+        "learner_utterance": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "learner": {
+      "$comment": "problem_definition.md section 4.5: explicitly supplied, pedagogically relevant learner information only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "knowledge_state"],
+      "properties": {
+        "level": { "$ref": "#/$defs/nonEmptyString" },
+        "knowledge_state": { "$ref": "#/$defs/nonEmptyString" },
+        "affective_state": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "pedagogical_intent": {
+      "$comment": "problem_definition.md section 4.6 and docs/pedagogical_intents.md section 4: exactly one primary intent from the six-way TeachIntent v1 control set. Secondary/compositional intents are not part of the v1 standard-case input schema. 'out_of_scope' is intentionally NOT in this enum (docs/pedagogical_intents.md section 2: dataset filtering/QC only).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": [
+            "elicitation",
+            "scaffolding",
+            "explanation",
+            "corrective_feedback",
+            "supportive_feedback",
+            "extension"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "$comment": "Non-empty string containing at least one non-whitespace character. Input-contract strings are not required to be trimmed (trimming is required only for Speech Plan style descriptors).",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    }
+  }
+}
