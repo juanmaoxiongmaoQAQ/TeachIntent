@@ -1,9 +1,9 @@
-"""TeachIntent: pedagogical intent driven speech planning — contract layer.
+"""TeachIntent: pedagogical intent driven speech planning.
 
-This package currently implements the executable contract layer only
-(JSON Schemas + strict Pydantic models + cross-field semantic validators).
-Generator prompts, Hy3 API integration, renderer adapters, TTS and the
-evaluator are deliberately out of scope for this phase.
+This package implements the executable contract layer (JSON Schemas + strict
+Pydantic models + cross-field semantic validators) plus the Hy3 speech plan
+generator v0.1 (versioned prompts, Hy3 client, response parser, generation
+service). Renderer adapters, TTS, and the evaluator remain out of scope.
 """
 
 from teachintent.models import SpeechPlan, TeachIntentInput
