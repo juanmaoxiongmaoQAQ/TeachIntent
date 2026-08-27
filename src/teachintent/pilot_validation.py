@@ -48,17 +48,23 @@ __all__ = [
     "ValidationReport",
     "BLOCK_A",
     "BLOCK_B",
+    "BLOCK_C",
     "PILOT_DATASET_PATH",
     "BLOCK_B_DATASET_PATH",
+    "BLOCK_C_DATASET_PATH",
     "EXPECTED_CASE_COUNT",
     "EXPECTED_TOP_FIELDS",
     "EXPECTED_TAGS_FIELDS",
     "BLOCK_TAGS_FIELDS",
+    "BLOCK_CASE_COUNTS",
     "SIX_INTENTS",
     "DELIVERY_NEEDS",
     "BLOCK_B_SUBJECTS",
     "BLOCK_B_LEARNER_LEVELS",
     "BLOCK_B_DELIVERY_NEED_DISTRIBUTION",
+    "BLOCK_C_SUBJECTS",
+    "BLOCK_C_LEARNER_LEVELS",
+    "BLOCK_C_DELIVERY_NEED_DISTRIBUTION",
     "validate_pilot_cases",
 ]
 
@@ -67,15 +73,17 @@ __all__ = [
 # ---------------------------------------------------------------------------
 BLOCK_A = "controlled_contrast"
 BLOCK_B = "cross_domain_generalization"
+BLOCK_C = "hard_adversarial"
 
 _BLOCKS_DIR = Path(__file__).resolve().parents[2] / "cases" / "pilot" / "blocks"
 PILOT_DATASET_PATH = _BLOCKS_DIR / "block_a_controlled_contrast.jsonl"
 BLOCK_B_DATASET_PATH = _BLOCKS_DIR / "block_b_cross_domain_generalization.jsonl"
+BLOCK_C_DATASET_PATH = _BLOCKS_DIR / "block_c_hard_adversarial.jsonl"
 
 # ---------------------------------------------------------------------------
-# Shared constants (both blocks).
+# Shared constants (all blocks).
 # ---------------------------------------------------------------------------
-EXPECTED_CASE_COUNT = 12
+EXPECTED_CASE_COUNT = 12  # default; per-block overrides in BLOCK_CASE_COUNTS
 EXPECTED_TOP_FIELDS = (
     "case_id",
     "block",
@@ -85,10 +93,32 @@ EXPECTED_TOP_FIELDS = (
     "design_expectations",
 )
 
+# Per-block expected case counts.
+BLOCK_CASE_COUNTS: dict[str, int] = {
+    BLOCK_A: 12,
+    BLOCK_B: 12,
+    BLOCK_C: 6,
+}
+
+# Per-block expected difficulty.
+BLOCK_EXPECTED_DIFFICULTY: dict[str, str] = {
+    BLOCK_A: "standard",
+    BLOCK_B: "standard",
+    BLOCK_C: "hard",
+}
+
+# Per-block expected count for each of the six intents.
+BLOCK_INTENT_EXPECTED_COUNT: dict[str, int] = {
+    BLOCK_A: 2,
+    BLOCK_B: 2,
+    BLOCK_C: 1,
+}
+
 # Block-aware expected tags fields (wrapper structure).
 BLOCK_TAGS_FIELDS: dict[str, tuple[str, ...]] = {
     BLOCK_A: ("delivery_need", "contrast_group"),
     BLOCK_B: ("delivery_need",),
+    BLOCK_C: ("delivery_need",),
 }
 # Backward-compatible alias for the Block A tags fields.
 EXPECTED_TAGS_FIELDS = BLOCK_TAGS_FIELDS[BLOCK_A]
@@ -133,7 +163,27 @@ BLOCK_B_INTENT_ABBREVIATIONS = {
     "supportive_feedback": "SUP",
     "extension": "EXT",
 }
+# Shared alias (same mapping used by Block C case_id_format check).
+INTENT_ABBREVIATIONS = BLOCK_B_INTENT_ABBREVIATIONS
 BLOCK_B_CASE_ID_RE = re.compile(r"^PILOT-B-([A-Z]{3})-(\d{2})$")
+
+# ---------------------------------------------------------------------------
+# Block C constants (hard_adversarial design).
+# ---------------------------------------------------------------------------
+BLOCK_C_SUBJECTS = (
+    "mathematics",
+    "physics",
+    "english",
+    "chemistry",
+    "chinese",
+    "biology",
+)
+BLOCK_C_LEARNER_LEVELS = (
+    "middle_school",
+    "high_school",
+)
+BLOCK_C_DELIVERY_NEED_DISTRIBUTION = {"low": 3, "medium": 0, "high": 3}
+BLOCK_C_CASE_ID_RE = re.compile(r"^PILOT-C-([A-Z]{3})-(\d{2})$")
 
 
 @dataclass(frozen=True)
@@ -187,15 +237,21 @@ def _non_empty_string_list(value: object) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Dataset-level checks — shared (both blocks).
+# Dataset-level checks — shared (all blocks).
 # ---------------------------------------------------------------------------
-def _shared_dataset_checks(valid_cases: list[dict], expected_block: str | None) -> dict[str, str]:
+def _shared_dataset_checks(
+    valid_cases: list[dict],
+    expected_block: str | None,
+    expected_case_count: int,
+    expected_difficulty: str,
+    expected_intent_count: int,
+) -> dict[str, str]:
     checks: dict[str, str] = {}
 
-    # case count
-    if len(valid_cases) != EXPECTED_CASE_COUNT:
+    # case count (per-block expected)
+    if len(valid_cases) != expected_case_count:
         checks["case_count"] = (
-            f"expected {EXPECTED_CASE_COUNT} valid cases, got {len(valid_cases)}"
+            f"expected {expected_case_count} valid cases, got {len(valid_cases)}"
         )
     else:
         checks["case_count"] = ""
@@ -223,7 +279,7 @@ def _shared_dataset_checks(valid_cases: list[dict], expected_block: str | None) 
 
     # difficulty value
     bad_difficulty = sorted(
-        {c["difficulty"] for c in valid_cases if c["difficulty"] != EXPECTED_DIFFICULTY}
+        {c["difficulty"] for c in valid_cases if c["difficulty"] != expected_difficulty}
     )
     checks["difficulty_value"] = (
         f"unexpected difficulty value(s): {bad_difficulty}" if bad_difficulty else ""
@@ -253,20 +309,20 @@ def _shared_dataset_checks(valid_cases: list[dict], expected_block: str | None) 
         f"unexpected output_language value(s): {bad_langs}" if bad_langs else ""
     )
 
-    # each of the six intents occurs exactly twice
+    # each of the six intents occurs the expected number of times
     intent_counts = Counter(
         c["input"]["pedagogical_intent"]["primary"] for c in valid_cases
     )
     intent_problems = []
     for intent in SIX_INTENTS:
         n = intent_counts.get(intent, 0)
-        if n != 2:
+        if n != expected_intent_count:
             intent_problems.append(f"{intent}={n}")
     extra_intents = sorted(set(intent_counts) - set(SIX_INTENTS))
     for intent in extra_intents:
         intent_problems.append(f"{intent}={intent_counts[intent]} (unexpected)")
     checks["intent_counts"] = (
-        f"intent counts not exactly 2 each: {intent_problems}"
+        f"intent counts not exactly {expected_intent_count} each: {intent_problems}"
         if intent_problems
         else ""
     )
@@ -434,9 +490,84 @@ def _block_b_dataset_checks(valid_cases: list[dict]) -> dict[str, str]:
     return checks
 
 
+# ---------------------------------------------------------------------------
+# Dataset-level checks — Block C (hard_adversarial).
+# ---------------------------------------------------------------------------
+def _block_c_dataset_checks(valid_cases: list[dict]) -> dict[str, str]:
+    checks: dict[str, str] = {}
+
+    # case_id format: PILOT-C-{INTENT}-{NN}, consistent with the runtime intent
+    problems: list[str] = []
+    for c in valid_cases:
+        case_id = c["case_id"]
+        match = BLOCK_C_CASE_ID_RE.match(case_id)
+        if match is None:
+            problems.append(f"{case_id} (format)")
+            continue
+        abbrev = match.group(1)
+        intent = c["input"]["pedagogical_intent"]["primary"]
+        expected_abbrev = INTENT_ABBREVIATIONS.get(intent)
+        if expected_abbrev is None or abbrev != expected_abbrev:
+            problems.append(f"{case_id} (intent mismatch: {intent})")
+    checks["case_id_format"] = (
+        f"case_id format/intent problems: {problems}" if problems else ""
+    )
+
+    # all six frozen subjects represented exactly once
+    subject_counts = Counter(
+        c["input"]["instructional_content"]["subject"] for c in valid_cases
+    )
+    subject_problems: list[str] = []
+    for subj in BLOCK_C_SUBJECTS:
+        n = subject_counts.get(subj, 0)
+        if n != 1:
+            subject_problems.append(f"{subj}={n} (expected 1)")
+    extra_subjects = sorted(set(subject_counts) - set(BLOCK_C_SUBJECTS))
+    for subj in extra_subjects:
+        subject_problems.append(f"{subj}={subject_counts[subj]} (unexpected)")
+    checks["subject_coverage"] = (
+        f"subject coverage problems: {subject_problems}"
+        if subject_problems
+        else ""
+    )
+
+    # learner levels are exactly middle_school and high_school
+    levels = {c["input"]["learner"]["level"] for c in valid_cases}
+    expected_levels = set(BLOCK_C_LEARNER_LEVELS)
+    level_problems: list[str] = []
+    missing_levels = sorted(expected_levels - levels)
+    extra_levels = sorted(levels - expected_levels)
+    if missing_levels:
+        level_problems.append(f"missing: {missing_levels}")
+    if extra_levels:
+        level_problems.append(f"unexpected: {extra_levels}")
+    checks["learner_level_coverage"] = (
+        f"learner level problems: {level_problems}" if level_problems else ""
+    )
+
+    # frozen delivery_need distribution: low=3, medium=0, high=3
+    dist = Counter(c["tags"]["delivery_need"] for c in valid_cases)
+    dist_problems: list[str] = []
+    for need, expected_n in sorted(BLOCK_C_DELIVERY_NEED_DISTRIBUTION.items()):
+        actual_n = dist.get(need, 0)
+        if actual_n != expected_n:
+            dist_problems.append(f"{need}={actual_n} (expected {expected_n})")
+    extra_needs = sorted(set(dist) - set(BLOCK_C_DELIVERY_NEED_DISTRIBUTION))
+    for need in extra_needs:
+        dist_problems.append(f"{need}={dist[need]} (unexpected)")
+    checks["delivery_need_distribution"] = (
+        f"delivery_need distribution mismatch: {dist_problems}"
+        if dist_problems
+        else ""
+    )
+
+    return checks
+
+
 _DATASET_CHECK_DISPATCH = {
     BLOCK_A: _block_a_dataset_checks,
     BLOCK_B: _block_b_dataset_checks,
+    BLOCK_C: _block_c_dataset_checks,
 }
 
 
@@ -596,7 +727,18 @@ def validate_pilot_cases(
     # ---- Stage 4: dataset-level checks (shared + block-specific dispatch) ----
     valid_cases = [case for _, _, case in runtime_inputs]
 
-    dataset_checks = _shared_dataset_checks(valid_cases, expected_block)
+    expected_case_count = BLOCK_CASE_COUNTS.get(expected_block, EXPECTED_CASE_COUNT)
+    expected_difficulty = BLOCK_EXPECTED_DIFFICULTY.get(
+        expected_block, EXPECTED_DIFFICULTY
+    )
+    expected_intent_count = BLOCK_INTENT_EXPECTED_COUNT.get(expected_block, 2)
+    dataset_checks = _shared_dataset_checks(
+        valid_cases,
+        expected_block,
+        expected_case_count,
+        expected_difficulty,
+        expected_intent_count,
+    )
     block_check_fn = _DATASET_CHECK_DISPATCH.get(expected_block)
     if block_check_fn is not None:
         dataset_checks.update(block_check_fn(valid_cases))
