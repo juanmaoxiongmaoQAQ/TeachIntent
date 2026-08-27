@@ -1,0 +1,590 @@
+# TeachIntent — Block B Cross-Domain Generalization Cases
+
+> **Status:** Frozen — Pre-generation
+> **Block Version:** `0.2`
+> **Case Count:** 12
+> **Generation Status:** Not yet run; all expectations are pre-generation.
+
+## 1. Design Goal
+
+Block B tests whether the same frozen Prompt v0.1 and Speech Plan contract generalize beyond the two controlled Block A anchors.
+
+Unlike Block A, these cases are independently authored rather than grouped by shared content anchors.
+
+The block intentionally varies:
+
+- subject domain;
+- school level;
+- conceptual vs procedural/reasoning task;
+- learner knowledge state;
+- presence/absence of learner utterance;
+- presence/absence of affective state;
+- experiment-side `tags.delivery_need`.
+
+No Block A semantic finding was converted into a new model instruction. Prompt v0.1 remains unchanged.
+
+## 2. Revision from v0.1
+
+Version 0.2 makes a pre-generation QC revision only. No Hy3 output from Block B has been observed.
+
+- Broke the v0.1 intent–subject grouping by redistributing six cases across additional domains.
+- Expanded domain coverage from four subjects to six: mathematics, English, physics, chemistry, biology, and Chinese.
+- Revised `PILOT-B-COR-01` catalyst wording to state more precisely that a catalyst accelerates both forward and reverse reaction rates and makes equilibrium reached faster, without changing equilibrium position or composition.
+- Preserved the six intents, two cases per intent, three school levels, learner-utterance variation, affect variation, and pre-generation `delivery_need` annotations.
+
+## 3. Coverage Matrix
+
+| Case | Intent | Subject | Level | Knowledge State | Affect | Delivery Need |
+|---|---|---|---|---|---|---|
+| `PILOT-B-ELI-01` | `elicitation` | `mathematics` | `elementary_school` | `partial_understanding` | `—` | `low` |
+| `PILOT-B-ELI-02` | `elicitation` | `english` | `middle_school` | `partial_understanding` | `—` | `low` |
+| `PILOT-B-SCA-01` | `scaffolding` | `chemistry` | `high_school` | `stuck` | `uncertain` | `medium` |
+| `PILOT-B-SCA-02` | `scaffolding` | `chinese` | `middle_school` | `stuck` | `—` | `low` |
+| `PILOT-B-EXP-01` | `explanation` | `mathematics` | `middle_school` | `unknown` | `—` | `low` |
+| `PILOT-B-EXP-02` | `explanation` | `biology` | `elementary_school` | `unknown` | `—` | `low` |
+| `PILOT-B-COR-01` | `corrective_feedback` | `chemistry` | `high_school` | `misconception` | `—` | `medium` |
+| `PILOT-B-COR-02` | `corrective_feedback` | `english` | `middle_school` | `misconception` | `—` | `medium` |
+| `PILOT-B-SUP-01` | `supportive_feedback` | `mathematics` | `middle_school` | `correct_understanding` | `slightly_frustrated` | `high` |
+| `PILOT-B-SUP-02` | `supportive_feedback` | `biology` | `middle_school` | `correct_understanding` | `uncertain` | `medium` |
+| `PILOT-B-EXT-01` | `extension` | `physics` | `high_school` | `correct_understanding` | `—` | `low` |
+| `PILOT-B-EXT-02` | `extension` | `chinese` | `high_school` | `correct_understanding` | `—` | `low` |
+
+## 4. Dataset-Level Coverage
+
+- Intents: `{'elicitation': 2, 'scaffolding': 2, 'explanation': 2, 'corrective_feedback': 2, 'supportive_feedback': 2, 'extension': 2}`
+- Subjects: `['biology', 'chemistry', 'chinese', 'english', 'mathematics', 'physics']`
+- Learner levels: `['elementary_school', 'high_school', 'middle_school']`
+- Cases with `learner_utterance`: `10/12`
+- Cases without `learner_utterance`: `2/12`
+- Cases with `affective_state`: `3/12`
+- Cases without `affective_state`: `9/12`
+
+### Intent × Subject matrix
+
+| Intent | Case 1 | Case 2 |
+|---|---|---|
+| `elicitation` | `mathematics` | `english` |
+| `scaffolding` | `chemistry` | `chinese` |
+| `explanation` | `mathematics` | `biology` |
+| `corrective_feedback` | `chemistry` | `english` |
+| `supportive_feedback` | `mathematics` | `biology` |
+| `extension` | `physics` | `chinese` |
+
+## 5. Full Case Definitions
+
+### PILOT-B-ELI-01 — `elicitation`
+
+```json
+{
+  "case_id": "PILOT-B-ELI-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "mathematics",
+      "topic": "equivalent_fractions",
+      "content_anchor": "两个分数表示同一个整体中的相同大小时，它们是等值分数。把一个分数的分子和分母同时乘以或除以同一个非零数，分数的大小不变。例如，1/2和2/4表示相同的大小。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经接触过分数，并见过1/2和2/4，但还没有形成稳定的等值分数概念。",
+      "learner_utterance": "我知道1/2是把一个东西分成两份取一份，2/4是分成四份取两份，但我不确定它们是不是一样大。"
+    },
+    "learner": {
+      "level": "elementary_school",
+      "knowledge_state": "partial_understanding"
+    },
+    "pedagogical_intent": {
+      "primary": "elicitation"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "主要通过提问或邀请说明，使学生当前对1/2、2/4以及分数大小的理解变得可观察。",
+      "保持诊断性质，让学生自己说出判断两个分数是否一样大的依据。"
+    ],
+    "must_not": [
+      "直接告诉学生1/2和2/4相等或直接给出等值分数规则。",
+      "通过提示“同时乘2”等方式提前提供会明显缩小答案空间的判别方法。"
+    ]
+  }
+}
+```
+
+### PILOT-B-ELI-02 — `elicitation`
+
+```json
+{
+  "case_id": "PILOT-B-ELI-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "english",
+      "topic": "simple_past_vs_present_perfect",
+      "content_anchor": "一般过去时常用于表示在过去某个已经结束的时间发生并完成的动作，常与yesterday、last week、in 2024等明确过去时间搭配。现在完成时表示过去发生的事情与现在有关，或强调截至现在的经历、结果，通常不与已经结束的明确过去时间点连用。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经见过一般过去时和现在完成时，也知道二者都可以谈到过去发生的事情，但目前没有稳定的选择规则。",
+      "learner_utterance": "I saw this film last week 和 I have seen this film 都是在说过去，我还不太明白什么时候该用哪一个。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "partial_understanding"
+    },
+    "pedagogical_intent": {
+      "primary": "elicitation"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "让学生说出当前如何理解或区分一般过去时和现在完成时。",
+      "优先暴露学生已有判断依据，而不是直接教学。"
+    ],
+    "must_not": [
+      "直接给出两种时态的完整使用规则。",
+      "提前指出“明确过去时间”和“与现在有关”这两个核心判据。"
+    ]
+  }
+}
+```
+
+### PILOT-B-SCA-01 — `scaffolding`
+
+```json
+{
+  "case_id": "PILOT-B-SCA-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "medium"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "chemistry",
+      "topic": "balancing_chemical_equations",
+      "content_anchor": "配平化学方程式必须遵守质量守恒：反应前后每种元素的原子数应相等。配平时只能改变化学式前的化学计量系数，不能改变化学式中的下标。反应 H2 + O2 → H2O 的最简整数系数为 2、1、2，即 2H2 + O2 → 2H2O。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经知道化学方程式需要配平，但面对 H2 + O2 → H2O 时，不知道应该先检查哪里，也没有完成配平。",
+      "learner_utterance": "我知道要让两边原子数一样，但看到 H2 + O2 → H2O 我不知道从哪里开始。"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "stuck",
+      "affective_state": "uncertain"
+    },
+    "pedagogical_intent": {
+      "primary": "scaffolding"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "给出有限的过程性提示，引导学生检查反应前后各元素的原子数。",
+      "保留学生自己确定最终化学计量系数的责任。"
+    ],
+    "must_not": [
+      "直接给出最终配平结果2H2 + O2 → 2H2O。",
+      "建议修改H2、O2或H2O中的化学式下标。"
+    ]
+  }
+}
+```
+
+### PILOT-B-SCA-02 — `scaffolding`
+
+```json
+{
+  "case_id": "PILOT-B-SCA-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "chinese",
+      "topic": "infer_character_emotion_from_details",
+      "content_anchor": "阅读叙事文本时，人物心情既可以由直接描写判断，也可以根据动作、神态、语言和情境细节进行推断。推断必须有文本证据支持，不能只凭感觉。句子“她走到教室门口，停了几秒，反复捏着衣角，才轻轻推门进去”没有直接写出心情，但“停了几秒”“反复捏着衣角”等动作细节可以作为判断人物心情的重要证据。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生知道分析人物心情要找文本依据，但面对没有直接写出情绪词的句子时卡住了，不知道应该从哪些细节开始判断。",
+      "learner_utterance": "这句话没有写她是高兴还是紧张，我知道要找细节，可是不知道先看哪里。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "stuck"
+    },
+    "pedagogical_intent": {
+      "primary": "scaffolding"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "给出有限的方向性提示，引导学生关注可作为人物心情证据的动作或情境细节。",
+      "保留学生自己根据文本证据判断人物心情并说明理由的责任。"
+    ],
+    "must_not": [
+      "直接给出人物最终是什么心情。",
+      "脱离文本细节进行泛化猜测，或替学生完成全部证据—结论推理。"
+    ]
+  }
+}
+```
+
+### PILOT-B-EXP-01 — `explanation`
+
+```json
+{
+  "case_id": "PILOT-B-EXP-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "mathematics",
+      "topic": "distributive_property",
+      "content_anchor": "乘法分配律表示一个数乘括号内的和，可以分别乘括号中的每一项再相加：a(b+c)=ab+ac。例如 3(x+2)=3x+6。括号前的3需要同时乘x和2。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生第一次系统学习含字母式子的乘法分配律，还没有建立“括号外的数要乘括号内每一项”的规则。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "unknown"
+    },
+    "pedagogical_intent": {
+      "primary": "explanation"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "直接讲清乘法分配律的核心规则，并用content_anchor中的形式或例子帮助建立理解。",
+      "说明括号外的因数需要作用于括号中的每一项。"
+    ],
+    "must_not": [
+      "把情境写成对学生既有错误的纠正。",
+      "只通过连续提问让当前缺少核心规则的学生自己猜出分配律。"
+    ]
+  }
+}
+```
+
+### PILOT-B-EXP-02 — `explanation`
+
+```json
+{
+  "case_id": "PILOT-B-EXP-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "biology",
+      "topic": "plant_parts_and_functions",
+      "content_anchor": "植物的不同器官承担不同功能。根通常负责固定植物，并从土壤中吸收水和无机盐；茎能够支持植物体，并在根、叶等器官之间运输水、无机盐和有机物；叶是绿色植物进行光合作用的主要器官，能够制造有机物。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生正在第一次系统学习植物根、茎、叶的基本功能，还没有形成这些器官与功能之间的对应关系。",
+      "learner_utterance": "植物的根、茎和叶分别是做什么的？"
+    },
+    "learner": {
+      "level": "elementary_school",
+      "knowledge_state": "unknown"
+    },
+    "pedagogical_intent": {
+      "primary": "explanation"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "直接解释根、茎、叶的基本功能，并建立器官与功能之间的清晰对应。",
+      "保持解释在content_anchor提供的知识边界内，语言适合小学生理解。"
+    ],
+    "must_not": [
+      "假定学生已经形成某个具体错误并把主要功能转成纠错。",
+      "只连续提问而不提供当前尚未建立的核心知识。"
+    ]
+  }
+}
+```
+
+### PILOT-B-COR-01 — `corrective_feedback`
+
+```json
+{
+  "case_id": "PILOT-B-COR-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "medium"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "chemistry",
+      "topic": "catalyst_and_equilibrium",
+      "content_anchor": "催化剂通过提供活化能更低的反应途径来加快反应速率。对于可逆反应，催化剂同时加快正反应和逆反应的反应速率，使体系更快达到平衡。在温度、浓度、压强等其他条件不变时，催化剂不改变平衡位置，也不改变平衡组成或平衡产率；它只使体系更快达到原来的平衡状态。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经理解催化剂能加快反应，但把“更快”进一步推断成“最终生成更多产物”，形成了明确误解。",
+      "learner_utterance": "催化剂让正反应变快，所以平衡时应该能得到更多生成物。"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "misconception"
+    },
+    "pedagogical_intent": {
+      "primary": "corrective_feedback"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "针对“催化剂会提高平衡产率”这一错误结论进行修复。",
+      "明确区分“更快达到平衡”和“改变平衡位置/组成”。"
+    ],
+    "must_not": [
+      "只说学生错了而不解释速率与平衡结果之间的区别。",
+      "声称催化剂在其他条件不变时会提高平衡产率或使平衡向生成物方向移动。"
+    ]
+  }
+}
+```
+
+### PILOT-B-COR-02 — `corrective_feedback`
+
+```json
+{
+  "case_id": "PILOT-B-COR-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "medium"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "english",
+      "topic": "comparative_adjectives",
+      "content_anchor": "英语形容词比较级常用两种基本方式构成：较短的形容词通常在词尾加-er，较长的形容词通常在前面加more。同一个形容词通常不同时使用more和-er进行双重比较级标记。例如，easy的比较级是easier，因此应说“This book is easier than that one.”，通常不说“more easier”。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生知道比较级用于比较两个事物，但误以为在已经加-er的比较级前再加more可以表示“更加强”的比较。",
+      "learner_utterance": "我想说这本书比那本更容易，所以写“This book is more easier than that one.”，加more不是更能表示‘更’吗？"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "misconception"
+    },
+    "pedagogical_intent": {
+      "primary": "corrective_feedback"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "修复“more可以和-er比较级叠加来加强程度”这一误解。",
+      "明确指出easy的比较级应为easier，并解释通常不同时使用more和-er。"
+    ],
+    "must_not": [
+      "只把句子改成正确形式而不解释学生错误规则的问题。",
+      "声称“more easier”是标准的比较级构成方式。"
+    ]
+  }
+}
+```
+
+### PILOT-B-SUP-01 — `supportive_feedback`
+
+```json
+{
+  "case_id": "PILOT-B-SUP-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "high"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "mathematics",
+      "topic": "solving_linear_equations",
+      "content_anchor": "解方程 3(x+2)=15 可以先将等式两边同时除以3，得到 x+2=5，再两边同时减2，得到 x=3。也可以先用分配律展开为3x+6=15，再进行等式变形；只要每一步保持等式两边相等，方法就是有效的。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生此前解一元一次方程时连续出错，但这一次已经独立使用等式两边同时进行相同运算的方法正确得到x=3，仍然因为之前的错误而缺乏信心。",
+      "learner_utterance": "我先两边都除以3得到x+2=5，再两边减2得到x=3。应该是对的吧？我前几题一直错，有点不敢确定。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "correct_understanding",
+      "affective_state": "slightly_frustrated"
+    },
+    "pedagogical_intent": {
+      "primary": "supportive_feedback"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "认可学生这一次具体而正确的解题过程，并支持其继续使用有效策略。",
+      "把鼓励与真实进步或正确步骤联系起来，而不是进行空泛人格表扬。"
+    ],
+    "must_not": [
+      "把主要功能转成重新完整讲解整道方程。",
+      "使用“你天生就很聪明”等与具体学习过程无关的人格式表扬。"
+    ]
+  }
+}
+```
+
+### PILOT-B-SUP-02 — `supportive_feedback`
+
+```json
+{
+  "case_id": "PILOT-B-SUP-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "medium"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "biology",
+      "topic": "plant_cell_identification",
+      "content_anchor": "典型植物细胞通常具有细胞壁、细胞膜、细胞质、细胞核等结构，绿色部位的植物细胞还常具有叶绿体，并常见较大的液泡。动物细胞通常没有细胞壁和叶绿体。因此，在基础显微图像判断中，观察到细胞壁和叶绿体是支持“植物细胞”判断的重要证据。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经能够根据图中出现的细胞壁和叶绿体正确判断该细胞更可能是植物细胞，也能说出自己的证据，但因为此前类似判断出错过而缺乏信心。",
+      "learner_utterance": "我看到它有细胞壁，还有叶绿体，所以我觉得这是植物细胞。这个判断应该对吧？我前面有一道题判断错了，所以有点不确定。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "correct_understanding",
+      "affective_state": "uncertain"
+    },
+    "pedagogical_intent": {
+      "primary": "supportive_feedback"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "认可学生利用细胞壁和叶绿体进行判断这一具体而正确的证据使用策略。",
+      "把支持与学生当前正确推理联系起来，帮助其建立对有效判断方法的信心。"
+    ],
+    "must_not": [
+      "把主要功能转成从头重新讲解植物细胞和动物细胞的全部结构。",
+      "只给出“很好”“你很聪明”等不联系实际推理过程的空泛表扬。"
+    ]
+  }
+}
+```
+
+### PILOT-B-EXT-01 — `extension`
+
+```json
+{
+  "case_id": "PILOT-B-EXT-01",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "physics",
+      "topic": "newtons_second_law",
+      "content_anchor": "牛顿第二定律可表示为F_net = ma，其中F_net表示物体受到的合外力，m表示质量，a表示加速度。在质量相同时，合外力越大，加速度越大；在合外力相同时，质量越大，加速度越小。加速度方向与合外力方向相同。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经能够正确使用F_net = ma解释合外力、质量和加速度之间的基本关系，并能分别说明固定质量或固定合外力时变量如何变化。",
+      "learner_utterance": "同样质量时合外力越大，加速度越大；同样合外力时质量越大，加速度越小。"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "correct_understanding"
+    },
+    "pedagogical_intent": {
+      "primary": "extension"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "要求学生把牛顿第二定律迁移到一个新的比较或情境中，并解释合外力、质量与加速度之间的关系。",
+      "让学生进行新的关系推理，而不是只复述F_net = ma或原有两句规律。"
+    ],
+    "must_not": [
+      "直接替学生完成全部新情境推理。",
+      "引入完成任务必须依赖但content_anchor未提供的摩擦、斜面分解或其他额外物理机制。"
+    ]
+  }
+}
+```
+
+### PILOT-B-EXT-02 — `extension`
+
+```json
+{
+  "case_id": "PILOT-B-EXT-02",
+  "block": "cross_domain_generalization",
+  "difficulty": "standard",
+  "tags": {
+    "delivery_need": "low"
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "chinese",
+      "topic": "argument_evidence_quality",
+      "content_anchor": "议论文中的论据用于支持论点。判断论据是否有说服力，至少要看它与论点是否相关，以及它能否提供较充分、有代表性的支持。单个个人经历可以作为例子，但通常代表性有限；样本范围更广、与论点直接相关的材料，通常能提供更强的支持。现在要支持论点“规律作息有助于提高学习效率”，有两则材料：A：小林早睡一周后觉得自己上课更精神；B：某校连续四周记录300名学生的作息与课堂任务完成情况，规律作息组平均任务完成率更高。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生已经理解论据需要与论点相关，也知道不能只看材料是否“听起来像真的”，但还没有把这些原则用于比较不同论据的支持力度。"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "correct_understanding"
+    },
+    "pedagogical_intent": {
+      "primary": "extension"
+    }
+  },
+  "design_expectations": {
+    "must": [
+      "要求学生比较材料A与B对给定论点的支持力度，并根据相关性、样本范围或代表性说明理由。",
+      "让学生把已掌握的论据判断原则迁移到具体材料比较，而不是只复述原则。"
+    ],
+    "must_not": [
+      "直接替学生给出完整的A/B优劣结论和全部理由。",
+      "要求学生使用content_anchor之外的统计检验、因果推断术语或其他额外方法才能完成任务。"
+    ]
+  }
+}
+```
