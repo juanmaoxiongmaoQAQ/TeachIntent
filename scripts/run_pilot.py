@@ -5,6 +5,7 @@ Usage:
     .venv/bin/python scripts/run_pilot.py            # Block A (default)
     .venv/bin/python scripts/run_pilot.py block_a
     .venv/bin/python scripts/run_pilot.py block_b
+    .venv/bin/python scripts/run_pilot.py block_c
 
 Requires a .env file (copy .env.example, fill HY3_API_KEY / HY3_BASE_URL /
 HY3_MODEL=tencent/hy3). The API key is NEVER written to any artifact.

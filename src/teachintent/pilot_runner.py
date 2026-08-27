@@ -1,13 +1,13 @@
 """Reproducible batch runner for the frozen TeachIntent pilot baselines.
 
 Block-aware general runner: loads a frozen pilot block JSONL (Block A
-``controlled_contrast`` or Block B ``cross_domain_generalization``), runs each
-case sequentially through the existing Generator service
-(``generate_speech_plan``) with the frozen experimental condition (OpenRouter,
-``tencent/hy3``, temperature=0, no structured output, no retry, no
-self-repair), and saves per-case + run-level artifacts under the block's
-results directory (``results/pilot/block_a/<run_id>/`` or
-``results/pilot/block_b/<run_id>/``).
+``controlled_contrast``, Block B ``cross_domain_generalization``, or Block C
+``hard_adversarial``), runs each case sequentially through the existing
+Generator service (``generate_speech_plan``) with the frozen experimental
+condition (OpenRouter, ``tencent/hy3``, temperature=0, no structured output,
+no retry, no self-repair), and saves per-case + run-level artifacts under the
+block's results directory (``results/pilot/block_a/<run_id>/``,
+``results/pilot/block_b/<run_id>/``, or ``results/pilot/block_c/<run_id>/``).
 
 The structural preflight reuses the block-aware pilot validator
 (:func:`teachintent.pilot_validation.validate_pilot_cases`, auto-detecting the
@@ -28,7 +28,8 @@ usage, the wrapper will pick it up automatically via ``getattr``.
 This module does NOT call Hy3 on its own — the caller injects the client. Tests
 use mock/fake clients; real runs are driven by the thin CLIs
 (``scripts/run_pilot.py`` / ``scripts/run_pilot_block_a.py`` /
-``scripts/run_pilot_block_b.py``, all delegating to :func:`run_pilot_cli`).
+``scripts/run_pilot_block_b.py`` / ``scripts/run_pilot_block_c.py``, all
+delegating to :func:`run_pilot_cli`).
 """
 
 from __future__ import annotations
@@ -51,11 +52,16 @@ from .generator.errors import (
     SpeechPlanStructuralError,
 )
 from .generator.service import generate_speech_plan
-from .pilot_validation import BLOCK_B_DATASET_PATH, validate_pilot_cases
+from .pilot_validation import (
+    BLOCK_B_DATASET_PATH,
+    BLOCK_C_DATASET_PATH,
+    validate_pilot_cases,
+)
 
 __all__ = [
     "BLOCK_A_DATASET_PATH",
     "BLOCK_B_DATASET_PATH",
+    "BLOCK_C_DATASET_PATH",
     "PILOT_BLOCKS",
     "FROZEN_CONDITIONS",
     "PreflightError",
@@ -102,6 +108,10 @@ PILOT_BLOCKS: dict[str, dict[str, Path]] = {
     "block_b": {
         "dataset_path": BLOCK_B_DATASET_PATH,
         "results_dir": _REPO_ROOT / "results" / "pilot" / "block_b",
+    },
+    "block_c": {
+        "dataset_path": BLOCK_C_DATASET_PATH,
+        "results_dir": _REPO_ROOT / "results" / "pilot" / "block_c",
     },
 }
 
