@@ -1,9 +1,20 @@
-"""Reproducible batch runner for the frozen Block A Hy3 baseline generation.
+"""Reproducible batch runner for the frozen TeachIntent pilot baselines.
 
-Loads the frozen 12-case Block A JSONL, runs each case sequentially through the
-existing Generator service (``generate_speech_plan``) with the frozen experimental
-condition (OpenRouter, ``tencent/hy3``, temperature=0, no structured output, no
-retry, no self-repair), and saves per-case + run-level artifacts.
+Block-aware general runner: loads a frozen pilot block JSONL (Block A
+``controlled_contrast`` or Block B ``cross_domain_generalization``), runs each
+case sequentially through the existing Generator service
+(``generate_speech_plan``) with the frozen experimental condition (OpenRouter,
+``tencent/hy3``, temperature=0, no structured output, no retry, no
+self-repair), and saves per-case + run-level artifacts under the block's
+results directory (``results/pilot/block_a/<run_id>/`` or
+``results/pilot/block_b/<run_id>/``).
+
+The structural preflight reuses the block-aware pilot validator
+(:func:`teachintent.pilot_validation.validate_pilot_cases`, auto-detecting the
+block) and aborts before any API call if validation fails. The configuration
+preflight verifies the actual client configuration against the frozen
+baseline; the manifest records the actual verified conditions, not hardcoded
+values.
 
 This module reuses the frozen Generator stack (Prompt v0.1, Hy3Client, parser,
 validators, models, exception classes) and does NOT duplicate generator logic.
@@ -15,7 +26,9 @@ it is recorded as ``null`` in metadata. When a future client extension exposes
 usage, the wrapper will pick it up automatically via ``getattr``.
 
 This module does NOT call Hy3 on its own — the caller injects the client. Tests
-use mock/fake clients; the real run is driven by ``scripts/run_pilot_block_a.py``.
+use mock/fake clients; real runs are driven by the thin CLIs
+(``scripts/run_pilot.py`` / ``scripts/run_pilot_block_a.py`` /
+``scripts/run_pilot_block_b.py``, all delegating to :func:`run_pilot_cli`).
 """
 
 from __future__ import annotations
@@ -27,7 +40,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .generator import Hy3Completion
+from .generator import Hy3Client, Hy3Completion
 from .generator.errors import (
     GeneratorError,
     Hy3APIError,
@@ -38,17 +51,21 @@ from .generator.errors import (
     SpeechPlanStructuralError,
 )
 from .generator.service import generate_speech_plan
-from .pilot_validation import validate_pilot_cases
+from .pilot_validation import BLOCK_B_DATASET_PATH, validate_pilot_cases
 
 __all__ = [
     "BLOCK_A_DATASET_PATH",
+    "BLOCK_B_DATASET_PATH",
+    "PILOT_BLOCKS",
     "FROZEN_CONDITIONS",
     "PreflightError",
     "CapturingClient",
     "CaseResult",
     "RunManifest",
     "load_pilot_cases",
+    "run_pilot_block",
     "run_pilot_block_a",
+    "run_pilot_cli",
 ]
 
 # Repository-relative path to the frozen Block A dataset.
@@ -60,7 +77,10 @@ BLOCK_A_DATASET_PATH = (
     / "block_a_controlled_contrast.jsonl"
 )
 
-# Frozen experimental condition for the Block A Hy3 baseline.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Frozen experimental condition for the pilot Hy3 baselines (identical for
+# Block A and Block B).
 FROZEN_CONDITIONS: dict[str, Any] = {
     "api_gateway": "openrouter",
     "model": "tencent/hy3",
@@ -73,6 +93,18 @@ FROZEN_CONDITIONS: dict[str, Any] = {
 # The expected OpenRouter base URL (the /v1 prefix is part of HY3_BASE_URL).
 EXPECTED_BASE_URL = "https://openrouter.ai/api/v1"
 
+# Block registry: dataset path + results directory per pilot block.
+PILOT_BLOCKS: dict[str, dict[str, Path]] = {
+    "block_a": {
+        "dataset_path": BLOCK_A_DATASET_PATH,
+        "results_dir": _REPO_ROOT / "results" / "pilot" / "block_a",
+    },
+    "block_b": {
+        "dataset_path": BLOCK_B_DATASET_PATH,
+        "results_dir": _REPO_ROOT / "results" / "pilot" / "block_b",
+    },
+}
+
 
 class PreflightError(Exception):
     """Raised when a preflight safeguard fails, aborting the batch before any
@@ -82,11 +114,11 @@ class PreflightError(Exception):
 # ---------------------------------------------------------------------------
 # Preflight safeguards.
 # ---------------------------------------------------------------------------
-def _run_structural_preflight(dataset_path: Path) -> None:
-    """Run the existing pilot structural-validation logic on the dataset.
+def _run_structural_preflight(dataset_path: Path) -> str | None:
+    """Run the existing block-aware pilot structural-validation logic.
 
     If validation does not fully pass, raise :class:`PreflightError` to abort
-    before any Hy3 API call.
+    before any Hy3 API call. On success, return the detected block name.
     """
     report = validate_pilot_cases(dataset_path)
     if not report.all_passed:
@@ -101,6 +133,7 @@ def _run_structural_preflight(dataset_path: Path) -> None:
             f"({failed_checks}), {case_err_count} case error(s); "
             "aborting before any Hy3 API call"
         )
+    return report.block
 
 
 def _run_config_preflight(client: Any) -> dict[str, Any]:
@@ -222,6 +255,7 @@ class CaseResult:
     parsed_doc: dict | None = None
     http_response_text: str | None = None
     validation: dict = field(default_factory=dict)
+    block: str = ""
 
 
 @dataclass(frozen=True)
@@ -237,6 +271,7 @@ class RunManifest:
     pass_count: int
     fail_count: int
     cases: list[dict]  # per-case summary: case_id, outcome, duration, exception_class
+    block: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -312,16 +347,21 @@ def _stage_outcome(exc: GeneratorError | None) -> dict:
 # ---------------------------------------------------------------------------
 # Main batch runner.
 # ---------------------------------------------------------------------------
-def run_pilot_block_a(
+def run_pilot_block(
     client: Any,
     dataset_path: Path,
     output_dir: Path,
 ) -> RunManifest:
-    """Run the frozen Block A batch through the Generator service.
+    """Run a frozen pilot block batch through the Generator service.
 
     *client* must satisfy the :class:`Hy3Completer` Protocol. It is wrapped in a
     :class:`CapturingClient` to capture ``finish_reason``. Artifacts are written
     under *output_dir*. Returns a :class:`RunManifest`.
+
+    The block is auto-detected by the structural preflight (the block-aware
+    pilot validator), so the same code path serves Block A and Block B. Only
+    ``case["input"]`` is ever passed to the Generator; experiment metadata,
+    tags, and design_expectations never enter the model prompt.
 
     A failure in one case is recorded and does NOT stop the remaining cases.
     Exactly one first-call generation attempt per case (no retry, no self-repair).
@@ -330,9 +370,10 @@ def run_pilot_block_a(
     run_started = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # ---- Preflight safeguards (before any Hy3 API call) ----
-    # 1. Structural: validate the frozen dataset through the existing pilot
-    #    structural-validation logic. Abort if it does not fully pass.
-    _run_structural_preflight(dataset_path)
+    # 1. Structural: validate the frozen dataset through the existing
+    #    block-aware pilot structural-validation logic. Abort if it does not
+    #    fully pass. Returns the detected block.
+    block = _run_structural_preflight(dataset_path) or ""
     # 2. Configuration: verify the actual client matches the frozen baseline
     #    (OpenRouter, tencent/hy3, structured output disabled). Returns the
     #    actual verified conditions for the manifest (not hardcoded).
@@ -429,6 +470,7 @@ def run_pilot_block_a(
             parsed_doc=parsed_doc,
             http_response_text=http_response_text,
             validation=_stage_outcome(exc if isinstance(exc, GeneratorError) else None),
+            block=block,
         )
         results.append(case_result)
 
@@ -469,6 +511,7 @@ def run_pilot_block_a(
             {
                 "case_id": r.case_id,
                 "attempt_index": r.attempt_index,
+                "block": r.block,
                 "prompt_version": r.prompt_version,
                 "api_gateway": actual_conditions["api_gateway"],
                 "requested_model": r.requested_model,
@@ -502,9 +545,80 @@ def run_pilot_block_a(
             }
             for r in results
         ],
+        block=block,
     )
     _write_json(run_dir / "manifest.json", asdict(manifest))
     return manifest
+
+
+def run_pilot_block_a(
+    client: Any,
+    dataset_path: Path,
+    output_dir: Path,
+) -> RunManifest:
+    """Backward-compatible alias for :func:`run_pilot_block`."""
+    return run_pilot_block(client, dataset_path, output_dir)
+
+
+# ---------------------------------------------------------------------------
+# Thin CLI entry point (shared by scripts/run_pilot*.py).
+# ---------------------------------------------------------------------------
+def run_pilot_cli(block_name: str) -> int:
+    """CLI entry: run one pilot block baseline. Returns a process exit code.
+
+    Loads ``.env`` (if present), builds the Hy3 client from the environment,
+    prints the frozen condition and the resolved endpoint (never the API key),
+    runs the block, prints a per-case PASS/FAIL summary and aggregate counts.
+    Exit codes: 0 = all cases passed; 1 = at least one case failed;
+    2 = preflight failure (aborted before any API call) or unknown block.
+    """
+    from dotenv import load_dotenv
+
+    if block_name not in PILOT_BLOCKS:
+        print(
+            f"ERROR: unknown block {block_name!r}; "
+            f"choose from {sorted(PILOT_BLOCKS)}"
+        )
+        return 2
+
+    load_dotenv()
+    client = Hy3Client.from_env()
+    config = PILOT_BLOCKS[block_name]
+
+    print(f"Dataset:  {config['dataset_path']}")
+    print(f"Endpoint: {client.endpoint}")
+    print(f"Model:    {client.model} (requested)")
+    print(f"Condition: {FROZEN_CONDITIONS}")
+    print()
+
+    try:
+        manifest = run_pilot_block(
+            client, config["dataset_path"], config["results_dir"]
+        )
+    except PreflightError as exc:
+        print(f"PREFLIGHT FAILED: {exc}")
+        print("Aborted before any Hy3 API call. No cases were generated.")
+        return 2
+
+    # Per-case summary.
+    for entry in manifest.cases:
+        status = "PASS" if entry["outcome"] == "success" else "FAIL"
+        detail = ""
+        if entry["outcome"] != "success":
+            detail = f"  [{entry['exception_class']}]"
+        print(
+            f"  {status}  {entry['case_id']}"
+            f"  ({entry['duration_seconds']:.3f}s){detail}"
+        )
+
+    print()
+    print(f"Block:    {manifest.block}")
+    print(
+        f"Aggregate: {manifest.pass_count}/{manifest.case_count} passed, "
+        f"{manifest.fail_count} failed."
+    )
+    print(f"Artifacts: {config['results_dir'] / manifest.run_id}")
+    return 0 if manifest.fail_count == 0 else 1
 
 
 def _write_json(path: Path, obj: Any) -> None:
