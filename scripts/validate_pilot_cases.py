@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Validate the frozen TeachIntent Block A pilot dataset.
+"""Validate a frozen TeachIntent pilot dataset (Block A or Block B).
 
 Validates ONLY ``case["input"]`` per case through the existing frozen runtime
-contract (JSON Schema + Pydantic), then runs Block A dataset-level checks.
-Experiment metadata is never treated as runtime input. Does not call Hy3 and
-requires no API credentials.
+contract (JSON Schema + Pydantic), then runs block-specific dataset-level
+checks. The block is auto-detected from the dataset. Experiment metadata is
+never treated as runtime input. Does not call Hy3 and requires no API
+credentials.
 
 Usage:
-    .venv/bin/python scripts/validate_pilot_cases.py [path]
+    .venv/bin/python scripts/validate_pilot_cases.py                        # Block A (default)
+    .venv/bin/python scripts/validate_pilot_cases.py <path-to-jsonl>        # explicit dataset
+
+Examples:
+    .venv/bin/python scripts/validate_pilot_cases.py cases/pilot/blocks/block_a_controlled_contrast.jsonl
+    .venv/bin/python scripts/validate_pilot_cases.py cases/pilot/blocks/block_b_cross_domain_generalization.jsonl
 
 Exit code 0 only if every check passes; non-zero otherwise.
 """
@@ -17,7 +23,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from teachintent.pilot_validation import PILOT_DATASET_PATH, validate_pilot_cases
+from teachintent.pilot_validation import (
+    BLOCK_B_DATASET_PATH,
+    PILOT_DATASET_PATH,
+    validate_pilot_cases,
+)
 
 
 def main(argv: list[str]) -> int:
@@ -29,6 +39,7 @@ def main(argv: list[str]) -> int:
     report = validate_pilot_cases(path)
 
     print(f"Dataset: {path}")
+    print(f"Block (detected):         {report.block}")
     print(f"Parsed case count:        {report.parsed_count}")
     print(
         f"JSON Schema pass count:   {report.json_schema_pass_count}"
