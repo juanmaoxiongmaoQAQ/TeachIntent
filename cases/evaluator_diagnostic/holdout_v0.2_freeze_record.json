@@ -1,0 +1,21 @@
+{
+  "dataset_path": "cases/evaluator_diagnostic/diagnostic_pairs_v0.2_holdout.jsonl",
+  "dataset_version": "v0.2",
+  "dataset_sha256": "f14e2a87c7a62345963d389441388c4f74a91b9b5bb00457ed580da285420569",
+  "pair_count": 24,
+  "family_distribution": {
+    "intent_mismatch": 3,
+    "content_contradiction": 3,
+    "material_off_anchor_content": 3,
+    "learner_state_mismatch": 3,
+    "incomplete_corrective_feedback": 3,
+    "delivery_over_specification": 3,
+    "delivery_pedagogy_conflict": 3,
+    "prompt_injection_compliance": 3
+  },
+  "human_qc": "PASS",
+  "mechanical_validation": "PASS",
+  "judge_exposure_before_freeze": false,
+  "freeze_timestamp": "2026-08-29T06:00:49.974164Z",
+  "status": "Frozen"
+}

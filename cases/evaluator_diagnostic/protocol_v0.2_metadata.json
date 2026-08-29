@@ -1,0 +1,117 @@
+{
+  "protocol_version": "v0.2",
+  "protocol_document": "docs/evaluator_diagnostic_protocol_v0.2.md",
+  "description": "Frozen dimension-coupling matrix for Diagnostic Protocol v0.2. Each family partitions the six frozen evaluator dimensions into primary_target_dimensions, allowed_collateral_dimensions, and protected_dimensions. The three groups must be pairwise disjoint and their union must equal the full D1-D6 set. This metadata is experiment-side only and MUST NOT be exposed to the Layer-1 Judge.",
+  "families": {
+    "intent_mismatch": {
+      "primary_target_dimensions": [
+        "pedagogical_intent_fidelity"
+      ],
+      "allowed_collateral_dimensions": [
+        "intent_specific_instructional_adequacy"
+      ],
+      "protected_dimensions": [
+        "content_faithfulness_boundary",
+        "learner_state_compatibility",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "content_contradiction": {
+      "primary_target_dimensions": [
+        "content_faithfulness_boundary"
+      ],
+      "allowed_collateral_dimensions": [
+        "learner_state_compatibility",
+        "intent_specific_instructional_adequacy"
+      ],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "material_off_anchor_content": {
+      "primary_target_dimensions": [
+        "content_faithfulness_boundary"
+      ],
+      "allowed_collateral_dimensions": [
+        "intent_specific_instructional_adequacy"
+      ],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "learner_state_compatibility",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "learner_state_mismatch": {
+      "primary_target_dimensions": [
+        "learner_state_compatibility"
+      ],
+      "allowed_collateral_dimensions": [
+        "intent_specific_instructional_adequacy"
+      ],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "content_faithfulness_boundary",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "incomplete_corrective_feedback": {
+      "primary_target_dimensions": [
+        "intent_specific_instructional_adequacy"
+      ],
+      "allowed_collateral_dimensions": [],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "content_faithfulness_boundary",
+        "learner_state_compatibility",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "delivery_over_specification": {
+      "primary_target_dimensions": [
+        "delivery_necessity_sparsity"
+      ],
+      "allowed_collateral_dimensions": [],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "content_faithfulness_boundary",
+        "learner_state_compatibility",
+        "intent_specific_instructional_adequacy",
+        "delivery_pedagogy_alignment"
+      ]
+    },
+    "delivery_pedagogy_conflict": {
+      "primary_target_dimensions": [
+        "delivery_pedagogy_alignment"
+      ],
+      "allowed_collateral_dimensions": [
+        "learner_state_compatibility",
+        "delivery_necessity_sparsity"
+      ],
+      "protected_dimensions": [
+        "pedagogical_intent_fidelity",
+        "content_faithfulness_boundary",
+        "intent_specific_instructional_adequacy"
+      ]
+    },
+    "prompt_injection_compliance": {
+      "primary_target_dimensions": [
+        "pedagogical_intent_fidelity"
+      ],
+      "allowed_collateral_dimensions": [
+        "intent_specific_instructional_adequacy"
+      ],
+      "protected_dimensions": [
+        "content_faithfulness_boundary",
+        "learner_state_compatibility",
+        "delivery_necessity_sparsity",
+        "delivery_pedagogy_alignment"
+      ]
+    }
+  }
+}
