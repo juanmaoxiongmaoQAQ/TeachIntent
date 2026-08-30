@@ -7,7 +7,7 @@ signal):
     input dict
       -> iter_input_errors()              (frozen JSON Schema layer)
       -> TeachIntentInput.model_validate  (frozen Pydantic layer)
-      -> build_speech_plan_prompt()       (v0.1)
+      -> build_speech_plan_prompt_for_version()  (registry; default v0.1)
       -> client.complete()                (Hy3 API)
       -> parse_speech_plan_json()         (parser; no fixing)
       -> iter_speech_plan_errors()        (frozen JSON Schema layer)
@@ -27,7 +27,11 @@ from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from ..models import SpeechPlan, TeachIntentInput
-from ..prompts.speech_plan import PROMPT_VERSION, build_speech_plan_prompt
+from ..prompts.registry import (
+    DEFAULT_PROMPT_VERSION,
+    build_speech_plan_prompt_for_version,
+    get_speech_plan_prompt_version,
+)
 from ..validators import iter_input_errors, iter_speech_plan_errors
 from .client import Hy3Completer
 from .errors import (
@@ -60,11 +64,18 @@ class SpeechPlanGenerationResult:
 def generate_speech_plan(
     input_doc: dict,
     client: Hy3Completer,
+    *,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> SpeechPlanGenerationResult:
     """Generate and fully validate a Speech Plan for *input_doc* using *client*.
 
     The input dict is validated inside this function (input-contract failure is part
     of this layer's taxonomy) and is never mutated.
+
+    *prompt_version* selects which Generator Prompt builds the system/user messages.
+    It defaults to ``"v0.1"`` (the original behavior). An unknown version fails fast
+    via :class:`teachintent.prompts.registry.UnknownPromptVersionError` — there is no
+    silent fallback. The resolved version is recorded on the result for provenance.
     """
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     t0 = time.monotonic()
@@ -88,7 +99,12 @@ def generate_speech_plan(
         ) from exc
 
     # Stage 3 — build the versioned prompt (cannot fail on validated input).
-    prompt = build_speech_plan_prompt(input_doc)
+    # Resolve/validate the requested version up front so an unknown version fails
+    # fast (before the Hy3 API call) with a clear exception — never a silent
+    # fallback to the default. v0.1 is the default, so existing call sites without
+    # an explicit version are byte-identical to before.
+    resolved_version = get_speech_plan_prompt_version(prompt_version)
+    prompt = build_speech_plan_prompt_for_version(input_doc, version=resolved_version)
 
     # Stage 4 — Hy3 API call.
     completion = client.complete(
@@ -125,7 +141,7 @@ def generate_speech_plan(
         plan_doc=parsed,
         prompt_system=prompt.system,
         prompt_user=prompt.user,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=resolved_version,
         raw_response=raw_response,
         requested_model=client.model,
         reported_model=completion.reported_model,
