@@ -1,8 +1,16 @@
 # Generator / Prompt v0.2 Design Spec
 
-**Status:** Draft (QC-reviewed)  
-**Target:** TeachIntent Generator Prompt v0.2  
+**Status:** Frozen
+**Version:** v0.2
+**Frozen on:** 2026-09-01
+**Target:** TeachIntent Generator Prompt v0.2
 **Scope:** Prompt-level behavioral revision only
+**Selected parent:** Prompt v0.2-rc.2
+**Formal implementation:** `src/teachintent/prompts/speech_plan_v0_2.py`
+**Behavioral identity:** formal v0.2 delegates to v0.2-rc.2; model-facing
+system and user messages are byte-for-byte identical
+**Prompt-package SHA-256:**
+`77cfcd6afeff58cc6868aad9b64da1a5af04e615477223b877c5d12234a90234`
 
 ---
 
@@ -28,9 +36,13 @@ For engineering provenance:
 generator_code_version = v0.1
 prompt_version = v0.2
 condition_label = generator_prompt_v0.2
+parent_prompt_version = v0.2-rc.2
 ```
 
-The Generator implementation remains unchanged. The behavioral revision is introduced exclusively through Prompt v0.2.
+The Generator implementation remains unchanged. The behavioral revision was
+developed in Prompt v0.2-rc.2 and is exposed formally as Prompt v0.2 through a
+direct behavioral alias. The formal version label is provenance metadata and is
+not added to the model-facing messages.
 
 ---
 
@@ -50,6 +62,7 @@ Prompt v0.2 must not modify:
 - Judge model
 - Decoding temperature
 - Existing canonical Pilot runs
+- Prompt v0.1, Prompt v0.2-rc.1, or Prompt v0.2-rc.2 behavioral text
 
 ---
 
@@ -57,19 +70,18 @@ Prompt v0.2 must not modify:
 
 ### P1. Delivery Necessity / Sparsity
 
-The default assumption should be:
-
-```json
-{}
-```
-
-for `delivery_plan`.
-
-A delivery control should be added only when there is a specific pedagogical need that cannot be adequately achieved through wording alone.
+A plan should start from the minimum necessary delivery plan. An empty
+`delivery_plan` is preferred when wording alone fully carries the pedagogical
+function, but `{}` must not be selected merely to avoid over-specification. If
+vocal realization materially contributes to the intended learner-state change,
+the smallest justified control set should be included.
 
 Core rule:
 
-> Default to no delivery control. Add a delivery control only when a specific pedagogical need clearly requires vocal realization beyond what the verbal wording alone can achieve.
+> Start from the minimum necessary delivery plan. Add a delivery control only
+> when a specific pedagogical need clearly requires vocal realization beyond
+> what the verbal wording alone can achieve. Sparsity means minimum justified
+> control, not zero control.
 
 Before adding any delivery control, the model should internally ask:
 
@@ -96,9 +108,11 @@ Prompt v0.2 should explicitly induce this planning order:
 ```text
 Step 1. Determine the requested pedagogical intent.
 Step 2. Produce a sufficient verbal pedagogical move.
-Step 3. Assume delivery_plan = {}.
-Step 4. Check whether any delivery control is pedagogically necessary.
-Step 5. Add only the minimum necessary controls.
+Step 3. Start from the minimum necessary delivery plan; {} is preferred when
+        wording alone is sufficient, but not as an automatic choice.
+Step 4. Check whether vocal realization materially contributes to the intended
+        learner-state change.
+Step 5. Add only the smallest justified control set; otherwise keep {}.
 ```
 
 The verbal plan should carry the primary pedagogical function whenever possible.
@@ -111,7 +125,8 @@ Delivery controls are supplements, not substitutes for insufficient wording.
 
 ### 6.1 Empty delivery plan is valid
 
-An empty `delivery_plan` is not incomplete. It is preferred when wording alone is sufficient.
+An empty `delivery_plan` is not incomplete. It is preferred when wording alone
+is sufficient, but it must not be chosen merely to avoid over-specification.
 
 ### 6.2 Do not encode defaults
 
@@ -143,6 +158,25 @@ Prominence is appropriate only when there is a clear pedagogical need, such as:
 ### 6.5 Prefer wording over prosodic control
 
 If the same pedagogical effect can be achieved through clearer wording, revise the verbal plan instead of adding delivery controls.
+
+### 6.6 Minimum control may still be justified
+
+Sparsity does not mean always empty. A small control set may be justified when
+vocal realization materially contributes to the pedagogical function, for
+example:
+
+- one reassuring-but-corrective stance for a repeated misconception with
+  learner frustration;
+- one gentle, non-pressuring stance when needed to preserve agency during
+  scaffolding;
+- one local prominence target when auditory contrast materially aids
+  misconception correction or alternative discrimination;
+- one restrained supportive stance when wording alone would sound flat or
+  dismissive.
+
+These are illustrations, not templates. Each control still requires a specific
+pedagogical reason that wording alone cannot achieve, and redundant controls
+must not be stacked.
 
 ---
 
@@ -233,11 +267,16 @@ Is every substantive teaching claim supported by the supplied instructional cont
 3. Adequacy
 Is the verbal move sufficient for this learner and this intent?
 
-4. Delivery
+4. Delivery (present)
 For every delivery control, is there a specific pedagogical reason that cannot be adequately achieved through wording alone?
+
+5. Delivery (absent)
+If delivery_plan is empty, has a vocal realization that materially contributes
+to the intended learner-state change been omitted?
 ```
 
-If the answer to check 4 is no, remove the control.
+If the answer to check 4 is no, remove the control. If the answer to check 5 is
+yes, add the smallest justified control.
 
 The self-check must not appear in the final JSON output.
 
@@ -270,16 +309,22 @@ Prompt v0.2 is not intended to:
 
 ---
 
-## 12. Development Focus Cases
+## 12. Development Evidence
 
-During development, particular attention should be paid to:
+The development evaluation paid particular attention to:
 
 - scaffolding cases with over-specified delivery,
 - supportive feedback cases with unnecessary emotional/prosodic controls,
 - explanation cases with insufficient instructional completeness,
 - hard/adversarial cases with intent drift.
 
-Existing 30 Pilot cases are development evidence and may be used to diagnose these failure patterns.
+The existing 30 Pilot cases are development evidence. Prompt v0.2-rc.1
+collapsed to `delivery_plan = {}` for 30/30 cases and was rejected. The narrow
+v0.2-rc.2 correction produced 27 empty / 3 non-empty delivery plans and, in the
+paired development evaluation, improved D5 and D4 without systematic protected
+dimension regression. This evidence justified selecting rc.2 as the formal v0.2
+treatment. It is not held-out confirmatory evidence and must not be used for
+further prompt tuning.
 
 ---
 
@@ -296,7 +341,7 @@ correct pedagogical intent
 v0.2:
 correct pedagogical intent
 + sufficient verbal teaching move
-+ delivery controls only when clearly necessary
++ minimum justified delivery control, including {} when wording is sufficient
 ```
 
 The intended improvement is therefore not “more expressive output,” but **more selective and pedagogically justified expression**.
@@ -305,6 +350,15 @@ The intended improvement is therefore not “more expressive output,” but **mo
 
 ## 14. Status
 
-This document is a **QC-reviewed Draft**.
+This document and the behavioral content it describes are **Frozen** as Prompt
+v0.2 on 2026-09-01.
 
-The design direction has passed human QC and may now be used to implement Prompt v0.2-rc.1. Freeze only after the first implementation-level review.
+Formal Prompt v0.2 delegates directly to Prompt v0.2-rc.2. The model-facing
+system and user messages are byte-for-byte identical to the selected rc.2
+treatment. The formal version label is provenance metadata only.
+
+The development evidence supporting selection is recorded in generation run
+`20260831-153546` and paired development evaluation run `20260901T043729Z`.
+Formal confirmatory evidence does not yet exist. No held-out case may be authored
+or exposed until `docs/generator_prompt_v0.2_experiment_protocol.md` is separately
+hardened, QC'd, and frozen.

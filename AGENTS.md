@@ -66,6 +66,8 @@ results:
 - Input Schema (`1.0.0-rc.2`) and Speech Plan Schema (`1.0.0-rc.3`)
 - Evaluator Diagnostic Protocol v0.2 + its holdout dataset
 - Generator Baseline Evaluation Protocol v0.2
+- formal Prompt v0.2 (`src/teachintent/prompts/speech_plan_v0_2.py`), a
+  byte-identical behavioral alias of v0.2-rc.2, plus its freeze record
 - canonical Pilot runs (Generator v0.1, blocks A/B/C)
 - frozen baseline evaluation (`generator_v0_1_baseline_evaluation_v0_2/...`)
 - all already-recorded experiment results
@@ -80,12 +82,18 @@ specs, frozen prompts, or recorded results.
 v0.1        original default (src/teachintent/prompts/speech_plan.py)
 v0.2-rc.1   narrow behavioral revision (speech_plan_v0_2_rc1.py)
 v0.2-rc.2   minimal correction of rc.1 (speech_plan_v0_2_rc2.py)
+v0.2        formal frozen alias of v0.2-rc.2 (speech_plan_v0_2.py)
 ```
 
 Selection is **explicit** via `registry.py` / `build_speech_plan_prompt_for_version`.
 The default is always `v0.1`; v0.1-compatible behavior must never break. A run
-opts into v0.2-rc.x explicitly. Never hard-code a version import into the
-generator core.
+opts into v0.2-rc.x or formal v0.2 explicitly. Formal v0.2 must remain
+model-facing byte-identical to v0.2-rc.2; its version is provenance metadata.
+Never hard-code a version import into the generator core.
+
+Prompt v0.2 is frozen from development evidence only. Formal confirmatory
+evidence does not yet exist, and no held-out case may be authored or inspected
+until the Prompt v0.2 confirmatory experiment protocol is separately frozen.
 
 ## Testing
 

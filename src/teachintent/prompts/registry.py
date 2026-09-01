@@ -2,17 +2,17 @@
 
 v0.1 is preserved untouched in :mod:`teachintent.prompts.speech_plan`. v0.2-rc.1
 lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc1`, and v0.2-rc.2 (a minimal
-correction of rc.1) lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc2`. This
-registry adds a minimal, explicit selection API on top of the existing prompts
-package so that a generation run can request a specific prompt version without the
-generator implementation needing to hard-code which one it imports.
+correction of rc.1) lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc2`.
+Formal v0.2 lives in :mod:`teachintent.prompts.speech_plan_v0_2` and delegates to
+the exact rc.2 model-facing treatment. This registry adds a minimal, explicit
+selection API so that a generation run can request a specific prompt version
+without the generator implementation needing to hard-code which one it imports.
 
 The DEFAULT version is ``v0.1`` — call sites that do not opt into selection get
 byte-identical behavior to the original ``build_speech_plan_prompt``. The generator
-service (``teachintent.generator.service``) already selects through this registry
-via ``generate_speech_plan(..., prompt_version=...)``; the v0.2-rc.1 development
-runner opts into ``v0.2-rc.1`` explicitly. No prompt text lives here — this module
-only routes to the existing prompt builders.
+service (``teachintent.generator.service``) selects through this registry via
+``generate_speech_plan(..., prompt_version=...)``. No prompt text lives here —
+this module only routes to the existing prompt builders.
 """
 
 from __future__ import annotations
@@ -33,11 +33,18 @@ from .speech_plan_v0_2_rc2 import (
 from .speech_plan_v0_2_rc2 import (
     build_speech_plan_prompt as _build_v0_2_rc2,
 )
+from .speech_plan_v0_2 import (
+    PARENT_PROMPT_VERSION as PARENT_PROMPT_VERSION_V0_2,
+)
+from .speech_plan_v0_2 import PROMPT_VERSION as PROMPT_VERSION_V0_2
+from .speech_plan_v0_2 import build_speech_plan_prompt as _build_v0_2
 
 __all__ = [
     "PROMPT_VERSION_V0_1",
     "PROMPT_VERSION_V0_2_RC1",
     "PROMPT_VERSION_V0_2_RC2",
+    "PROMPT_VERSION_V0_2",
+    "PARENT_PROMPT_VERSION_V0_2",
     "SpeechPlanPrompt",
     "UnknownPromptVersionError",
     "SPEECH_PLAN_PROMPTS",
@@ -59,6 +66,7 @@ SPEECH_PLAN_PROMPTS: dict[str, tuple[str, Callable[[dict], SpeechPlanPrompt]]] =
     PROMPT_VERSION_V0_1: (PROMPT_VERSION_V0_1, _build_v0_1),
     PROMPT_VERSION_V0_2_RC1: (PROMPT_VERSION_V0_2_RC1, _build_v0_2_rc1),
     PROMPT_VERSION_V0_2_RC2: (PROMPT_VERSION_V0_2_RC2, _build_v0_2_rc2),
+    PROMPT_VERSION_V0_2: (PROMPT_VERSION_V0_2, _build_v0_2),
 }
 
 

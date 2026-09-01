@@ -143,3 +143,25 @@ Consequence.
 - **Consequence:** Any further version change requires new held-out evidence;
   the next step is held-out evaluation planning, not more development-set
   optimization.
+
+## Decision 12 — Freeze formal Prompt v0.2 as a behavioral alias of rc.2
+
+- **Context:** rc.2 corrected rc.1's always-empty delivery collapse while the
+  paired development evaluation supported the intended D5/D4 improvement and
+  showed no systematic protected-dimension regression. Further tuning on the
+  same 30 development cases would increase overfitting risk.
+- **Decision:** Promote the exact v0.2-rc.2 model-facing treatment to formal
+  Prompt v0.2. Formal v0.2 uses `prompt_version = "v0.2"` as provenance
+  metadata but delegates directly to the rc.2 builder, so its system and user
+  messages remain byte-for-byte identical. Record
+  `parent_prompt_version = "v0.2-rc.2"`.
+- **Evidence:** Generation run `20260831-153546` was structurally successful on
+  30/30 cases with delivery distribution 27 empty / 3 non-empty. Paired
+  development evaluation `20260901T043729Z` found D5 +0.5128 and D4 +0.1346
+  over 26 pair-eligible cases, stable protected dimensions, and no new critical
+  flags. The frozen prompt-package SHA-256 is
+  `77cfcd6afeff58cc6868aad9b64da1a5af04e615477223b877c5d12234a90234`.
+- **Consequence:** Prompt v0.2 is frozen and may not be behaviorally edited.
+  This is a development-supported selection, not confirmatory evidence. No
+  held-out case may be authored or exposed until the confirmatory experiment
+  protocol is independently hardened, QC'd, and frozen.

@@ -1,0 +1,124 @@
+{
+  "record_type": "teachintent_generator_prompt_freeze",
+  "record_version": "1.0",
+  "status": "Frozen",
+  "frozen_on": "2026-09-01",
+  "formal_prompt_version": "v0.2",
+  "parent_prompt_version": "v0.2-rc.2",
+  "formal_source": {
+    "path": "src/teachintent/prompts/speech_plan_v0_2.py",
+    "sha256": "ff004c97e01002bd33a21ef7b0922dd7ae883c2bd815e4ed3617069ad9e6b0e8"
+  },
+  "parent_source": {
+    "path": "src/teachintent/prompts/speech_plan_v0_2_rc2.py",
+    "sha256": "98b8e80c7b1d1b02a33fa5eec8bcb385ad1c3e656409bf9aaa9409aded0dc2a2",
+    "git_commit": "2252fde1c26049e514532ccf495d910a2090d6c0"
+  },
+  "design_spec": {
+    "path": "docs/generator_prompt_v0.2_design_spec.md",
+    "status": "Frozen",
+    "version": "v0.2",
+    "sha256": "71271047cc199bbd9c09180bdc7fba3b55567a284ac25b5899c2c8f243f3c135"
+  },
+  "behavioral_identity": {
+    "strategy": "formal module directly imports and re-exports the v0.2-rc.2 builder",
+    "model_facing_system_byte_identical": true,
+    "model_facing_user_byte_identical": true,
+    "formal_version_is_provenance_metadata_only": true,
+    "model_facing_provenance_text_added": false,
+    "statement": "For every input document, formal v0.2 and v0.2-rc.2 produce the same SpeechPlanPrompt system and user strings byte-for-byte."
+  },
+  "prompt_hashes": {
+    "algorithm": "SHA-256",
+    "text_normalization": "Normalize CRLF and CR line endings to LF before UTF-8 encoding.",
+    "package_canonicalization": "UTF-8 JSON of {system_template,user_template} with ensure_ascii=false, sort_keys=true, separators=(',', ':'), and no trailing newline.",
+    "prompt_package_sha256": "77cfcd6afeff58cc6868aad9b64da1a5af04e615477223b877c5d12234a90234",
+    "system_message_sha256": "a3068124162649c10c6a13cba1b467be4357fef672258d666bba2119ecdcd2e0",
+    "user_template_sha256": "55cd7f2eedc6cac0e4f70858515ac15a72a27df9975386da4a2f480ba7a81e25",
+    "v0_1_prompt_package_sha256": "cf9a89398e683b0ae103d4e45511f6e7763636fc67a2ded8ea89ab4cc2557f75"
+  },
+  "development_evidence": {
+    "evidence_kind": "development_non_confirmatory",
+    "development_population_sha256": "a880833add59293a6de13b046c75af6527483eba5bfb3e1a35aebbf2f129706b",
+    "rc2_generation": {
+      "run_id": "20260831-153546",
+      "path": "results/prompt_v0_2_rc2_development/20260831-153546",
+      "run_manifest_sha256": "859f521e984d2b88f1f1ac5dcc483dc8718ae6275082e83c9db1d831b954f163",
+      "structural_success": "30/30",
+      "delivery_distribution": "27 empty / 3 non-empty"
+    },
+    "rc2_paired_development_evaluation": {
+      "run_id": "20260901T043729Z",
+      "path": "results/prompt_v0_2_rc2_development_evaluation/20260901T043729Z",
+      "run_manifest_sha256": "12392b6f820188640c52867709c30e1b537c7070d74a76ed9e7ad46d52cb935d",
+      "summary_sha256": "97bbf2483e80c0c5e147b49e61bf4f26ec8f50950b2e317df1b2a7647a8afb1e",
+      "paired_comparison_csv_sha256": "1ec994f71e2778af48416376396e8f0a26777d462375e83c486362815e718c20",
+      "pair_eligible_cases": 26,
+      "candidate_successful_semantic_repeats": "87/90",
+      "candidate_actual_physical_attempts": 112,
+      "d5_paired_mean_delta": 0.5128,
+      "d4_paired_mean_delta": 0.1346,
+      "verdict": null
+    }
+  },
+  "frozen_dependencies": {
+    "generator": {
+      "version": "v0.1",
+      "model": "tencent/hy3",
+      "temperature": 0,
+      "structured_output_enabled": false,
+      "retry_enabled": false,
+      "self_repair_enabled": false
+    },
+    "generator_v0_1_baseline": {
+      "run_id": "20260830T095934Z",
+      "path": "results/generator_v0_1_baseline_evaluation_v0_2/20260830T095934Z",
+      "run_manifest_sha256": "f875987e54d5cea79c3efc7010895d899c72099dafa685fa1ba3b8ad8d04b2d4",
+      "summary_sha256": "2b1f208827fd95454742aacbef641c823ebfdbda39bf3c6e002253ef4cc427e5"
+    },
+    "generator_baseline_evaluation_protocol": {
+      "version": "v0.2",
+      "path": "docs/generator_v0.1_evaluation_protocol_v0.2.md",
+      "sha256": "c30cb89096fa945111e4e93b59777ce91c29951b797c1a970848ab41b050caab"
+    },
+    "evaluator": {
+      "version": "v0.1",
+      "confirmatory_run_id": "20260829T154127Z",
+      "confirmatory_run_manifest_sha256": "4ded233a21362aae820b085c5aa3e81961ed1490143307da3a1132b2644eb51a",
+      "confirmatory_summary_sha256": "c77d4ef268a5a7be80f43821883c794faf12904eacef9d5640a8bcc6595217c4",
+      "semantic_validation": "PASS"
+    },
+    "judge_prompt": {
+      "version": "v0.1",
+      "sha256": "b2eac7b0750ab1221ec8c6a554d82b5edc313e637435ec93015cf18cb9ef9f28"
+    },
+    "evaluator_diagnostic_protocol": {
+      "version": "v0.2",
+      "path": "docs/evaluator_diagnostic_protocol_v0.2.md",
+      "sha256": "c8b5a25669dfb80e11d0653e2dd57cea23e94f87e2369eed8f364b9895e5a925"
+    },
+    "evaluator_diagnostic_holdout": {
+      "version": "v0.2",
+      "path": "cases/evaluator_diagnostic/diagnostic_pairs_v0.2_holdout.jsonl",
+      "sha256": "f14e2a87c7a62345963d389441388c4f74a91b9b5bb00457ed580da285420569"
+    },
+    "input_schema": {
+      "version": "1.0.0-rc.2",
+      "path": "schemas/teachintent_input.schema.json",
+      "sha256": "b4af2c6a7e84700bdf07fea24843ff8a60b50c72a34e152f8a347f841084033e"
+    },
+    "speech_plan_schema": {
+      "version": "1.0.0-rc.3",
+      "path": "schemas/speech_plan.schema.json",
+      "sha256": "7623d16bf2e5899fef5aa2674623e266836e94925bffcfc6ef67b81fb9c389e5"
+    }
+  },
+  "confirmatory_status": {
+    "formal_confirmatory_evidence_exists": false,
+    "held_out_exposure_authorized": false,
+    "experiment_protocol_path": "docs/generator_prompt_v0.2_experiment_protocol.md",
+    "experiment_protocol_status": "Draft (QC-reviewed)",
+    "experiment_protocol_frozen_sha256": null,
+    "note": "The current Draft experiment-protocol SHA is intentionally not recorded as frozen. No held-out case may be authored or inspected until that protocol is separately hardened, QC'd, and frozen."
+  }
+}

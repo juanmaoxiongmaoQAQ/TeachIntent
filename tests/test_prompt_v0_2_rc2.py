@@ -210,10 +210,15 @@ def test_rc2_self_check_has_balance_check() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 9. registry lists all three versions, default still v0.1.
+# 9. registry lists all four versions, default still v0.1.
 # ---------------------------------------------------------------------------
-def test_registry_lists_three_versions_and_defaults_to_v0_1() -> None:
-    assert list_speech_plan_prompt_versions() == ["v0.1", "v0.2-rc.1", "v0.2-rc.2"]
+def test_registry_lists_four_versions_and_defaults_to_v0_1() -> None:
+    assert list_speech_plan_prompt_versions() == [
+        "v0.1",
+        "v0.2",
+        "v0.2-rc.1",
+        "v0.2-rc.2",
+    ]
 
 
 def test_rc2_is_deterministic() -> None:

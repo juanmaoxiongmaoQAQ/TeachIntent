@@ -172,13 +172,13 @@ def test_invalid_version_fails_fast_without_api_call(
     assert V0_2_RC1 in str(exc.value) or V0_1 in str(exc.value)
 
 
-def test_invalid_version_does_not_fall_back_to_v0_1(
+def test_invalid_rc3_version_does_not_fall_back_to_v0_1(
     canonical_input_doc, canonical_speech_plan_doc
 ) -> None:
     fake = FakeHy3Client(json.dumps(canonical_speech_plan_doc, ensure_ascii=False))
     with pytest.raises(UnknownPromptVersionError):
         generate_speech_plan(
-            canonical_input_doc, fake, prompt_version="v0.2"
+            canonical_input_doc, fake, prompt_version="v0.2-rc.3"
         )
     # Confirmed: no generation happened (would have recorded a call otherwise).
     assert fake.calls == []
