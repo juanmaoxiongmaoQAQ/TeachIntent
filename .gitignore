@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 .DS_Store
 __pycache__/
 *.pyc
@@ -9,6 +11,10 @@ venv/
 build/
 dist/
 *.log
+*.key
+*.pem
+*.p12
+*.pfx
 .workbuddy/
 
 results/

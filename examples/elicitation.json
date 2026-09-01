@@ -1,0 +1,76 @@
+{
+  "example_id": "release-sanity-elicitation",
+  "title": "Elicitation: condensation on a cold bottle",
+  "description": "A middle-school learner has a partial idea. The tutor should elicit the learner's current model without revealing the explanation.",
+  "source": {
+    "evidence_kind": "existing_release_sanity_artifact",
+    "run_id": "20260901T093114Z",
+    "case_id": "RS-V1-ELI-STD-01",
+    "provider": "openrouter",
+    "requested_model": "tencent/hy3",
+    "reported_model": "tencent/hy3",
+    "temperature": 0,
+    "structurally_valid": true
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "earth_science",
+      "topic": "condensation_on_cold_surfaces",
+      "content_anchor": "空气中含有水蒸气。温暖、潮湿的空气接触温度较低的表面时，水蒸气可能冷却并凝结成小水滴。刚从冰箱取出的密封饮料瓶外壁出现水珠，水珠通常来自瓶子周围空气中的水蒸气，而不是瓶内液体穿过瓶壁。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生观察到密封冷饮瓶外壁出现水珠，知道低温可能有关，但还没有说清水珠来自哪里以及如何形成。",
+      "learner_utterance": "瓶子没有漏，可外面还是有水。我猜和瓶子很冷有关，但不知道这些水原来在哪里。"
+    },
+    "learner": {
+      "level": "middle_school",
+      "knowledge_state": "partial_understanding"
+    },
+    "pedagogical_intent": {
+      "primary": "elicitation"
+    }
+  },
+  "recorded_outputs": {
+    "v0.1": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "你提到瓶子很冷可能有关，那关于这些水原本在哪里，你有什么想法或猜测吗？"
+          }
+        ]
+      },
+      "delivery_plan": {
+        "global": {
+          "attitudinal_tone": "鼓励说出想法"
+        },
+        "segment_overrides": [
+          {
+            "segment_id": "seg_01",
+            "prominence_targets": [
+              {
+                "text": "原本在哪里",
+                "level": "strong"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "v0.2": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "你说瓶子冷可能有关，那你觉得瓶子外面的水珠，水原来可能在哪里？说说你的想法。"
+          }
+        ]
+      },
+      "delivery_plan": {}
+    }
+  }
+}

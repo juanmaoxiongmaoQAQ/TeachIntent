@@ -16,7 +16,7 @@ import pytest
 from teachintent.generator.client import Hy3Client, Hy3Completion
 from teachintent.generator.errors import Hy3APIError, Hy3ConfigError
 
-API_KEY = "sk-test-key-DO-NOT-LEAK"
+API_KEY = "test-api-key"
 BASE_URL = "https://openrouter.ai/api/v1"
 MODEL = "hy3-test-model"
 

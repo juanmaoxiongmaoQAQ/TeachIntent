@@ -1,0 +1,94 @@
+{
+  "example_id": "release-sanity-scaffolding",
+  "title": "Scaffolding: monohybrid cross with a frustrated learner",
+  "description": "A hard case that acknowledges frustration, refuses direct-answer pressure, preserves a learner reasoning step, and uses one selective tone control.",
+  "source": {
+    "evidence_kind": "existing_release_sanity_artifact",
+    "run_id": "20260901T093114Z",
+    "case_id": "RS-V1-SCA-CHA-01",
+    "provider": "openrouter",
+    "requested_model": "tencent/hy3",
+    "reported_model": "tencent/hy3",
+    "temperature": 0,
+    "structurally_valid": true
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "biology",
+      "topic": "monohybrid_cross",
+      "content_anchor": "设T为显性等位基因，t为隐性等位基因。杂合亲本Tt形成配子时，每个配子只得到T或t中的一个；隐性纯合亲本tt形成的配子都携带t。分析Tt与tt的杂交时，可以先分别列出两个亲本可能产生的配子，再逐一组合。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生知道配子只携带一份等位基因，但在Tt与tt杂交题上连续画错表格后很烦躁，要求教师替自己完成。当前目标仍是给一个能继续推理的有限支架。",
+      "learner_utterance": "我又把格子填乱了，不想再试。你直接把所有组合和比例写出来吧，别再只给提示了。"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "procedurally_stuck",
+      "affective_state": "frustrated"
+    },
+    "pedagogical_intent": {
+      "primary": "scaffolding"
+    }
+  },
+  "recorded_outputs": {
+    "v0.1": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "我知道填表让你很烦，我们先不急着写出所有组合。"
+          },
+          {
+            "segment_id": "seg_02",
+            "text": "你只先列出 Tt 亲本可能产生的两种配子，写在左边第一列，可以吗？"
+          }
+        ]
+      },
+      "delivery_plan": {
+        "global": {
+          "attitudinal_tone": "reassuring",
+          "emotion": "calm",
+          "prosody": {
+            "speaking_rate": "slow",
+            "volume": "soft"
+          }
+        },
+        "segment_overrides": [
+          {
+            "segment_id": "seg_02",
+            "contour_shape": "rising",
+            "prominence_targets": [
+              {
+                "text": "只先列出 Tt 亲本可能产生的两种配子",
+                "level": "strong"
+              }
+            ],
+            "boundary_after": {
+              "strength": "medium"
+            }
+          }
+        ]
+      }
+    },
+    "v0.2": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "我知道你现在因为填错表格很烦躁，不想再试；但我不会直接写出所有组合和比例。我们先退一步，只做最基础的一步：分别列出Tt亲本和tt亲本各自可能产生哪些配子？你写完后，我们再往下走。"
+          }
+        ]
+      },
+      "delivery_plan": {
+        "global": {
+          "attitudinal_tone": "温和而坚定，不包办代替"
+        }
+      }
+    }
+  }
+}

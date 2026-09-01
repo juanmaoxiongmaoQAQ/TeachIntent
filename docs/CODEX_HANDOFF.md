@@ -138,7 +138,7 @@ committed or pushed**. It must be committed before any new work builds on it.
 
 ## Important paths (absolute)
 
-Repository root: `/Users/chengtengteng/workspace/GitHub/TeachIntent`
+Repository root: `<repository-root>`
 
 Canonical Pilot runs:
 - `results/pilot/block_a/20260827-002543/`
