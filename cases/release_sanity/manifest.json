@@ -1,0 +1,48 @@
+{
+  "dataset_name": "TeachIntent Release Sanity",
+  "dataset_version": "release_sanity_v1",
+  "status": "Frozen for release sanity",
+  "frozen_on": "2026-09-01",
+  "evidence_use": "RELEASE SANITY EVIDENCE — NOT FORMAL CONFIRMATORY EVIDENCE",
+  "dataset_path": "cases/release_sanity/release_sanity_v1.jsonl",
+  "dataset_sha256": "2322c212230f8bf1418dfa54bf10af821725663b6caafd28de05a03fb0702031",
+  "canonical_dataset_sha256": "b3268bdf8cc4dcb75c47cb6c022335cf5c51acbdb0c3a48780aec1fc74e81c17",
+  "case_count": 12,
+  "output_language": "zh-CN",
+  "design": {
+    "pedagogical_intents": 6,
+    "cases_per_intent": 2,
+    "standard_cases": 6,
+    "challenging_cases": 6,
+    "challenging_cross_domain_cases": 3,
+    "challenging_hard_adversarial_cases": 3
+  },
+  "input_sha256_by_case": {
+    "RS-V1-COR-CHA-01": "4bbdcc21bd5ea7e075c6ef877f65d0a45588be7a89d9011b629b0b2b1d8789b0",
+    "RS-V1-COR-STD-01": "ae6ecb15e1090103c720dac74c7eb18b91ae41c861db8410ad4c85fc436847b6",
+    "RS-V1-ELI-CHX-01": "77a1f699a17b4a149f8a07dfa4036c22b78d66d0f027199858f01271e31845a7",
+    "RS-V1-ELI-STD-01": "398a6d9d0bc449d8382d7e5103ebf4b2be0aa8beb13206125d5289c24df865d3",
+    "RS-V1-EXP-CHX-01": "0476397bba70d174dc35b4f81f0338bfefdbef6f1017f82d056e69cc2cd080ff",
+    "RS-V1-EXP-STD-01": "716d2a48384d28d17f540748114427d46fe44a33438475b590bab68b9ecc229a",
+    "RS-V1-EXT-CHA-01": "fc95860a31915460b719aa2aa44c217648be48b198192ed49011c947aef1f3f1",
+    "RS-V1-EXT-STD-01": "8fe926615cbde9f533b6d3d396e041822f46bd2e071ef077fe5ee3c7a739a2af",
+    "RS-V1-SCA-CHA-01": "3381ad00df1da053c41b3f8d9d622b0986340f30edcb330162f41885c09ab76c",
+    "RS-V1-SCA-STD-01": "c3ad51bcdd1ae51e41caf9b94bf24adf9ef7d9973096ae32726be429b7afdc0a",
+    "RS-V1-SUP-CHX-01": "f1289c977046b864378ca9a08195d72f7d001ea9a7e533f8dd497a428cfc8014",
+    "RS-V1-SUP-STD-01": "eb1de31b76d7b973fded7d2757fc005c458fc25aabbc89a37c3b6cc7af045c43"
+  },
+  "development_comparison_sources": {
+    "cases/pilot/blocks/block_a_controlled_contrast.jsonl": "ec9fc465fd80151e5851c07a5bc842936ef601c6938becadef838e954ca22b1e",
+    "cases/pilot/blocks/block_b_cross_domain_generalization.jsonl": "46df1e847536c4dbbcf5472995c03f1d6ef442ffbf4bd67fcc1ee7c3114806f7",
+    "cases/pilot/blocks/block_c_hard_adversarial.jsonl": "529ece92833c73e03de78e1c61f1de3320f8ce0e08453d3a8145eebd38e5d1d4"
+  },
+  "offline_validation": {
+    "input_json_schema": "PASS 12/12",
+    "input_pydantic": "PASS 12/12",
+    "unique_case_ids": "PASS 12/12",
+    "balance": "PASS",
+    "duplicate_and_obvious_near_copy_screen": "PASS; 0 flagged comparisons against 30 development cases",
+    "model_calls_during_authoring": 0
+  },
+  "qc_summary_path": "cases/release_sanity/QC_SUMMARY.md"
+}
