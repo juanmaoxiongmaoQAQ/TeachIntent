@@ -1,9 +1,16 @@
-"""Prompt v0.2-rc.1 paired development evaluation (offline orchestration).
+"""Prompt v0.2 candidate **paired development evaluation** (offline orchestration).
 
 Compares two SIDES over the SAME frozen 30-case Pilot population:
 
-    v0.1 side    Generator v0.1 + Prompt v0.1   (canonical, frozen)
-    rc.1 side    Generator v0.1 + Prompt v0.2-rc.1  (candidate)
+    v0.1 side    Generator v0.1 + Prompt v0.1        (canonical, frozen)
+    candidate    Generator v0.1 + Prompt v0.2-rc.1   (candidate, selectable)
+                 Generator v0.1 + Prompt v0.2-rc.2   (candidate, selectable)
+
+There is ONE comparison framework. Selecting ``v0.2-rc.2`` changes only which
+FINISHED generation run is loaded and which short label (``rc_1`` / ``rc_2``)
+the candidate side carries in the artifacts. It never changes the protocol, the
+retry taxonomy, the reducer, or any aggregation formula — so the rc.1 path stays
+reproducible and byte-identical. rc.1 remains the default side.
 
 What is REUSED and never regenerated
 ------------------------------------
@@ -12,14 +19,14 @@ What is REUSED and never regenerated
 * **v0.1 evaluation** — the finished Generator v0.1 baseline evaluation run
   (Protocol v0.2, ``20260830T095934Z``), loaded READ-ONLY from its artifacts.
   No Judge is ever called for the v0.1 side and nothing is re-evaluated.
-* **rc.1 generation** — the finished candidate development run
-  (``20260831-052126``), loaded READ-ONLY.
+* **candidate generation** — the finished candidate development run
+  (rc.1 ``20260831-052126``, rc.2 ``20260831-153546``), loaded READ-ONLY.
 * **Evaluator v0.1** — called through the frozen Protocol v0.2 acquisition
   policy imported from :mod:`teachintent.generator_evaluation.baseline_v0_2`.
   The retry taxonomy, the 3-semantic-repeat design, the <= 3 physical-attempt
   policy and every aggregation formula are REUSED, never re-implemented.
 
-The ONLY new Judge calls in this experiment are the **rc.1 semantic
+The ONLY new Judge calls in this experiment are the **candidate semantic
 evaluations**: 30 candidate plans x 3 semantic repeats = 90 planned semantic
 evaluations, at most 3 physical attempts each (270 worst case).
 
@@ -29,6 +36,13 @@ the denominator instead.
 
 This produces DEVELOPMENT evidence, not held-out confirmatory evidence.
 No PASS/FAIL threshold is defined anywhere in this module.
+
+Delivery behaviour is reported alongside the Evaluator result on purpose: a
+high D5 score alone is NOT accepted as evidence, because a candidate that
+collapses ``delivery_plan`` to always-empty can look sparse without being
+correct. The summary therefore carries the measured empty / non-empty
+distribution (and the non-empty case IDs) next to the D5 paired statistics, and
+the final judgement must read both together.
 """
 
 from __future__ import annotations
@@ -82,13 +96,23 @@ from ..generator_evaluation.baseline_v0_2 import (
     aggregate_v0_2,
     execute_baseline_run_v2,
 )
+from .development_runner import (
+    PROMPT_VERSION_RC2,
+    SUPPORTED_PROMPT_VERSIONS,
+    summarize_delivery_distribution,
+)
 
 __all__ = [
     # ---- Identity ----
     "BASELINE_PROMPT_VERSION",
     "CANDIDATE_PROMPT_VERSION",
+    "PROMPT_VERSION_RC2",
+    "SUPPORTED_PROMPT_VERSIONS",
+    "CANDIDATE_LABELS",
+    "CANDIDATE_DIR_SLUGS",
     "BASELINE_EVALUATION_RUN_ID",
     "CANDIDATE_GENERATION_RUN_ID",
+    "CANDIDATE_GENERATION_RUN_ID_RC2",
     "PRIMARY_DIMENSION",
     "SECONDARY_DIMENSION",
     "PROTECTED_DIMENSIONS",
@@ -104,8 +128,16 @@ __all__ = [
     "RETRYABLE_FAILURE_TYPES",
     "NON_RETRYABLE_FAILURE_TYPES",
     "RESULTS_ROOT",
+    "RESULTS_ROOT_RC2",
     "BASELINE_EVALUATION_ROOT",
     "CANDIDATE_GENERATION_ROOT",
+    "CANDIDATE_GENERATION_ROOT_RC2",
+    # ---- Candidate-version routing ----
+    "candidate_label_for_prompt_version",
+    "candidate_dir_slug_for_prompt_version",
+    "candidate_generation_run_id_for_prompt_version",
+    "candidate_generation_root_for_prompt_version",
+    "evaluation_results_root_for_prompt_version",
     # ---- Errors ----
     "DevelopmentEvaluationError",
     # ---- Data types ----
@@ -117,6 +149,8 @@ __all__ = [
     "load_candidate_cases",
     "prepare_candidate_run",
     "prepare_development_evaluation",
+    # ---- Delivery behaviour (measured, not judged) ----
+    "summarize_candidate_delivery_behavior",
     # ---- Execution ----
     "execute_candidate_evaluation",
     # ---- Paired comparison (pure) ----
@@ -138,17 +172,22 @@ __all__ = [
 # ---------------------------------------------------------------------------
 #: The v0.1 comparison side's prompt.
 BASELINE_PROMPT_VERSION = "v0.1"
-#: The candidate prompt under development.
+#: The candidate prompt under development. rc.1 stays the DEFAULT side.
 CANDIDATE_PROMPT_VERSION = "v0.2-rc.1"
 
 #: The FINISHED Protocol v0.2 baseline evaluation run (reused, never rerun).
 BASELINE_EVALUATION_RUN_ID = "20260830T095934Z"
-#: The FINISHED candidate development generation run (reused, never rerun).
+#: The FINISHED rc.1 candidate development generation run (reused, never rerun).
 CANDIDATE_GENERATION_RUN_ID = "20260831-052126"
+#: The FINISHED rc.2 candidate development generation run (reused, never rerun).
+CANDIDATE_GENERATION_RUN_ID_RC2 = "20260831-153546"
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
+#: Paired-evaluation results roots — one per candidate prompt version, so an
+#: rc.2 evaluation can never overwrite a finished rc.1 evaluation.
 RESULTS_ROOT = _REPO_ROOT / "results" / "prompt_v0_2_rc1_development_evaluation"
+RESULTS_ROOT_RC2 = _REPO_ROOT / "results" / "prompt_v0_2_rc2_development_evaluation"
 
 BASELINE_EVALUATION_ROOT = (
     _REPO_ROOT
@@ -157,12 +196,39 @@ BASELINE_EVALUATION_ROOT = (
     / BASELINE_EVALUATION_RUN_ID
 )
 
+#: Candidate generation roots. Both are FINISHED runs, both read-only.
 CANDIDATE_GENERATION_ROOT = (
     _REPO_ROOT
     / "results"
     / "prompt_v0_2_rc1_development"
     / CANDIDATE_GENERATION_RUN_ID
 )
+CANDIDATE_GENERATION_ROOT_RC2 = (
+    _REPO_ROOT
+    / "results"
+    / "prompt_v0_2_rc2_development"
+    / CANDIDATE_GENERATION_RUN_ID_RC2
+)
+
+# ---------------------------------------------------------------------------
+# Candidate-version parameterisation.
+#
+# There is ONE comparison framework. Selecting rc.2 changes only which FINISHED
+# generation run is loaded and which short label the candidate side carries in
+# the artifacts ("rc_1_D5" vs "rc_2_D5"). It never changes the protocol, the
+# retry taxonomy, the reducer, or any aggregation formula.
+# ---------------------------------------------------------------------------
+#: Short artifact-key label for the candidate side, per prompt version.
+CANDIDATE_LABELS: dict[str, str] = {
+    CANDIDATE_PROMPT_VERSION: "rc_1",
+    PROMPT_VERSION_RC2: "rc_2",
+}
+
+#: Directory slug used for the candidate side's provenance label.
+CANDIDATE_DIR_SLUGS: dict[str, str] = {
+    CANDIDATE_PROMPT_VERSION: "v0_2_rc1",
+    PROMPT_VERSION_RC2: "v0_2_rc2",
+}
 
 # ---------------------------------------------------------------------------
 # Comparison design.
@@ -206,6 +272,60 @@ _REQUIRED_ARTIFACTS = (
 
 class DevelopmentEvaluationError(RuntimeError):
     """Raised when the paired development comparison fails a pre-flight check."""
+
+
+# ---------------------------------------------------------------------------
+# Candidate-version routing.
+#
+# Every mapping below is built from the module-level constants at CALL time
+# (rather than captured once into a dict) so each constant stays individually
+# overridable — a module-level cache would silently defeat monkeypatching.
+# ---------------------------------------------------------------------------
+def _resolve_mapping(mapping: dict[str, Any], prompt_version: str) -> Any:
+    try:
+        return mapping[prompt_version]
+    except KeyError:
+        raise DevelopmentEvaluationError(
+            f"unsupported candidate prompt_version {prompt_version!r}; "
+            f"supported: {sorted(SUPPORTED_PROMPT_VERSIONS)}"
+        ) from None
+
+
+def candidate_label_for_prompt_version(prompt_version: str) -> str:
+    """Short artifact-key label for the candidate side ("rc_1" / "rc_2")."""
+    return str(_resolve_mapping(CANDIDATE_LABELS, prompt_version))
+
+
+def candidate_dir_slug_for_prompt_version(prompt_version: str) -> str:
+    """Directory slug for the candidate side ("v0_2_rc1" / "v0_2_rc2")."""
+    return str(_resolve_mapping(CANDIDATE_DIR_SLUGS, prompt_version))
+
+
+def candidate_generation_run_id_for_prompt_version(prompt_version: str) -> str:
+    """The FINISHED generation run id the candidate side is loaded from."""
+    run_ids = {
+        CANDIDATE_PROMPT_VERSION: CANDIDATE_GENERATION_RUN_ID,
+        PROMPT_VERSION_RC2: CANDIDATE_GENERATION_RUN_ID_RC2,
+    }
+    return str(_resolve_mapping(run_ids, prompt_version))
+
+
+def candidate_generation_root_for_prompt_version(prompt_version: str) -> Path:
+    """The FINISHED candidate generation run directory (read-only)."""
+    roots = {
+        CANDIDATE_PROMPT_VERSION: CANDIDATE_GENERATION_ROOT,
+        PROMPT_VERSION_RC2: CANDIDATE_GENERATION_ROOT_RC2,
+    }
+    return Path(_resolve_mapping(roots, prompt_version))
+
+
+def evaluation_results_root_for_prompt_version(prompt_version: str) -> Path:
+    """The results directory an evaluation run for *prompt_version* writes to."""
+    roots = {
+        CANDIDATE_PROMPT_VERSION: RESULTS_ROOT,
+        PROMPT_VERSION_RC2: RESULTS_ROOT_RC2,
+    }
+    return Path(_resolve_mapping(roots, prompt_version))
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +387,12 @@ class DevelopmentEvaluationRun:
     integrity: CandidateIntegrity
     completed_at: str | None = None
     dry_run: bool = True
+    #: Which candidate prompt version this comparison evaluates.
+    candidate_prompt_version: str = CANDIDATE_PROMPT_VERSION
+    #: Short artifact-key label for the candidate side ("rc_1" / "rc_2").
+    candidate_label: str = CANDIDATE_LABELS[CANDIDATE_PROMPT_VERSION]
+    #: The FINISHED generation run the candidate plans were loaded from.
+    candidate_generation_run_id: str = CANDIDATE_GENERATION_RUN_ID
 
 
 # ---------------------------------------------------------------------------
@@ -422,15 +548,24 @@ def load_baseline_evaluation(
 # ---------------------------------------------------------------------------
 def load_candidate_cases(
     baseline: BaselineSide,
-    root: Path | str = CANDIDATE_GENERATION_ROOT,
+    root: Path | str | None = None,
+    prompt_version: str = CANDIDATE_PROMPT_VERSION,
 ) -> tuple[list[CanonicalCase], CandidateIntegrity]:
-    """Restore the 30 rc.1 Speech Plans from the finished generation run.
+    """Restore the 30 candidate Speech Plans from the finished generation run.
 
     Reads the candidate run directory only — no plan is regenerated and no
     repair is attempted. Every pre-flight violation is collected into
     :class:`CandidateIntegrity` rather than raising, so the dry-run can report
     the full picture before any Judge is called.
+
+    ``prompt_version`` selects which candidate the run must be: the manifest,
+    every ``prompt.json`` and every ``metadata.json`` are asserted against it,
+    and the run id must be the FINISHED run recorded for that version. A silent
+    fallback to another prompt would invalidate the whole comparison.
     """
+    if root is None:
+        root = candidate_generation_root_for_prompt_version(prompt_version)
+    expected_run_id = candidate_generation_run_id_for_prompt_version(prompt_version)
     root = Path(root)
     integrity = CandidateIntegrity()
     problems: list[str] = []
@@ -449,15 +584,15 @@ def load_candidate_cases(
 
     manifest = _read_json(manifest_path)
     run_id = manifest.get("run_id")
-    if run_id != CANDIDATE_GENERATION_RUN_ID:
+    if run_id != expected_run_id:
         problems.append(
             f"candidate run_id={run_id!r} != expected "
-            f"{CANDIDATE_GENERATION_RUN_ID!r}"
+            f"{expected_run_id!r}"
         )
-    if manifest.get("prompt_version") != CANDIDATE_PROMPT_VERSION:
+    if manifest.get("prompt_version") != prompt_version:
         problems.append(
             f"candidate prompt_version={manifest.get('prompt_version')!r} != "
-            f"{CANDIDATE_PROMPT_VERSION!r}"
+            f"{prompt_version!r}"
         )
 
     cases_dir = root / "cases"
@@ -495,19 +630,19 @@ def load_candidate_cases(
             )
 
         # prompt_version must agree across metadata.json and prompt.json, and
-        # must be the candidate — a silent fallback to v0.1 would invalidate
-        # the whole comparison.
-        prompt_version = prompt.get("prompt_version")
-        if metadata.get("prompt_version") != prompt_version:
+        # must be the requested candidate — a silent fallback to v0.1 (or to a
+        # different rc) would invalidate the whole comparison.
+        case_prompt_version = prompt.get("prompt_version")
+        if metadata.get("prompt_version") != case_prompt_version:
             problems.append(
                 f"{case_id}: prompt_version mismatch "
                 f"(metadata={metadata.get('prompt_version')!r}, "
-                f"prompt.json={prompt_version!r})"
+                f"prompt.json={case_prompt_version!r})"
             )
-        if prompt_version != CANDIDATE_PROMPT_VERSION:
+        if case_prompt_version != prompt_version:
             problems.append(
-                f"{case_id}: prompt_version={prompt_version!r} != "
-                f"{CANDIDATE_PROMPT_VERSION!r}"
+                f"{case_id}: prompt_version={case_prompt_version!r} != "
+                f"{prompt_version!r}"
             )
 
         outcome = validation.get("outcome")
@@ -535,7 +670,7 @@ def load_candidate_cases(
             source_path=str(case_dir),
             input_doc=input_doc,
             raw_response=raw_response,
-            prompt_version=prompt_version or "",
+            prompt_version=case_prompt_version or "",
             generator_version=GENERATOR_VERSION,
             requested_model=metadata.get("requested_model"),
             reported_model=metadata.get("reported_model"),
@@ -567,7 +702,7 @@ def load_candidate_cases(
             problems.append(
                 f"block {block}: expected {expected} cases, found {actual}"
             )
-    if integrity.prompt_versions not in ([], [CANDIDATE_PROMPT_VERSION]):
+    if integrity.prompt_versions not in ([], [prompt_version]):
         problems.append(
             f"unexpected prompt_version set: {integrity.prompt_versions}"
         )
@@ -616,19 +751,26 @@ def prepare_candidate_run(
     integrity: CandidateIntegrity,
     *,
     manifest: dict[str, Any] | None = None,
+    prompt_version: str = CANDIDATE_PROMPT_VERSION,
 ) -> BaselineRunV2:
-    """Build the Protocol v0.2 run object for the rc.1 evaluation.
+    """Build the Protocol v0.2 run object for the candidate evaluation.
 
-    This is the SAME run type the frozen baseline uses, so the rc.1 side is
-    executed and aggregated by the frozen v0.2 code path — not by a copy.
+    This is the SAME run type the frozen baseline uses, so the candidate side is
+    executed and aggregated by the frozen v0.2 code path — not by a copy. Only
+    the identity/provenance fields vary with ``prompt_version``; every protocol
+    field is the frozen constant.
     """
     manifest = manifest or {}
+    slug = candidate_dir_slug_for_prompt_version(prompt_version)
+    generation_run_id = candidate_generation_run_id_for_prompt_version(
+        prompt_version
+    )
     source_runs = [
         {
             "block": "candidate",
-            "block_name": "prompt_v0_2_rc1_development",
-            "run_id": CANDIDATE_GENERATION_RUN_ID,
-            "path": str(CANDIDATE_GENERATION_ROOT),
+            "block_name": f"prompt_{slug}_development",
+            "run_id": generation_run_id,
+            "path": str(candidate_generation_root_for_prompt_version(prompt_version)),
             "dataset_path": None,
             "expected_cases": CASE_COUNT,
             "actual_cases": integrity.total_cases,
@@ -664,17 +806,17 @@ def prepare_candidate_run(
             GENERATOR_VERSION_PROVENANCE
             + "; identical frozen Generator stack, only prompt_version differs"
         ),
-        prompt_version=CANDIDATE_PROMPT_VERSION,
+        prompt_version=prompt_version,
         prompt_version_provenance=(
             "artifact_directly_recorded; cases/<case_id>/prompt.json and "
-            "metadata.json both record prompt_version = v0.2-rc.1 and are "
-            "asserted per case by load_candidate_cases"
+            f"metadata.json both record prompt_version = {prompt_version} and "
+            "are asserted per case by load_candidate_cases"
         ),
         source_population_sha256=integrity.population_sha256,
         source_population_sha256_expected=SOURCE_POPULATION_SHA256,
-        # The FULL six-artifact fingerprint legitimately differs: the rc.1 run
-        # produced new raw_response / parsed / prompt / metadata artifacts over
-        # the SAME inputs. Population identity is asserted through
+        # The FULL six-artifact fingerprint legitimately differs: the candidate
+        # run produced new raw_response / parsed / prompt / metadata artifacts
+        # over the SAME inputs. Population identity is asserted through
         # ``input_fingerprints_match``, not through this field.
         source_population_sha256_match=False,
     )
@@ -683,15 +825,26 @@ def prepare_candidate_run(
 def prepare_development_evaluation(
     *,
     baseline_root: Path | str = BASELINE_EVALUATION_ROOT,
-    candidate_root: Path | str = CANDIDATE_GENERATION_ROOT,
+    candidate_root: Path | str | None = None,
+    prompt_version: str = CANDIDATE_PROMPT_VERSION,
 ) -> DevelopmentEvaluationRun:
     """Offline pre-flight for BOTH sides. Never calls the Judge.
 
-    Raises :class:`DevelopmentEvaluationError` when any cross-side identity
-    check fails, so a broken population can never reach a Judge call.
+    ``prompt_version`` selects the candidate side; ``candidate_root`` may
+    override the directory explicitly (it is still asserted to be the FINISHED
+    run recorded for that version). Raises
+    :class:`DevelopmentEvaluationError` when any cross-side identity check
+    fails, so a broken population can never reach a Judge call.
     """
+    if prompt_version not in SUPPORTED_PROMPT_VERSIONS:
+        raise DevelopmentEvaluationError(
+            f"unsupported candidate prompt_version {prompt_version!r}; "
+            f"supported: {sorted(SUPPORTED_PROMPT_VERSIONS)}"
+        )
     baseline = load_baseline_evaluation(baseline_root)
-    cases, integrity = load_candidate_cases(baseline, candidate_root)
+    if candidate_root is None:
+        candidate_root = candidate_generation_root_for_prompt_version(prompt_version)
+    cases, integrity = load_candidate_cases(baseline, candidate_root, prompt_version)
 
     if not integrity.ok:
         detail = "\n  - ".join(integrity.messages)
@@ -700,7 +853,9 @@ def prepare_development_evaluation(
         )
 
     candidate_manifest = _read_json(Path(candidate_root) / "run_manifest.json")
-    candidate_run = prepare_candidate_run(cases, integrity, manifest=candidate_manifest)
+    candidate_run = prepare_candidate_run(
+        cases, integrity, manifest=candidate_manifest, prompt_version=prompt_version
+    )
 
     return DevelopmentEvaluationRun(
         run_id=_utc_run_id(),
@@ -709,6 +864,11 @@ def prepare_development_evaluation(
         candidate_run=candidate_run,
         integrity=integrity,
         dry_run=True,
+        candidate_prompt_version=prompt_version,
+        candidate_label=candidate_label_for_prompt_version(prompt_version),
+        candidate_generation_run_id=(
+            candidate_generation_run_id_for_prompt_version(prompt_version)
+        ),
     )
 
 
@@ -722,11 +882,12 @@ def execute_candidate_evaluation(
     max_attempts: int = MAX_ATTEMPTS_PER_SEMANTIC_REPEAT,
     sleep_fn: Callable[[float], None] | None = None,
 ) -> None:
-    """Evaluate the 30 rc.1 plans under the frozen Protocol v0.2 policy.
+    """Evaluate the 30 candidate plans under the frozen Protocol v0.2 policy.
 
     Delegates verbatim to :func:`execute_baseline_run_v2`, so the semantic
     design (3 repeats), the attempt policy (<= 3 physical attempts), the
-    retryable taxonomy and the reducer are literally the frozen code.
+    retryable taxonomy and the reducer are literally the frozen code. This is
+    identical for every candidate prompt version.
 
     The v0.1 side is never touched here.
     """
@@ -751,8 +912,13 @@ def case_pair_rows(
     A case enters the paired comparison only when BOTH sides are eligible
     (``>= MIN_SUCCESSFUL_REPEATS`` successful semantic repeats). Success on one
     side never triggers a rerun of the other.
+
+    Candidate-side keys are prefixed with the run's candidate label
+    (``rc_1_*`` / ``rc_2_*``); the v0.1-side and ``delta_*`` keys are the same
+    for every candidate version, so the comparison shape never changes.
     """
     records = run.candidate_run.records
+    cand = run.candidate_label
     rows: list[dict[str, Any]] = []
 
     for case in sorted(run.candidate_run.cases, key=lambda c: c.case_id):
@@ -764,34 +930,34 @@ def case_pair_rows(
             )
 
         v01_eligible = bool(baseline_row.get("eligible"))
-        rc1_eligible = case_eligible(records, cid)
+        cand_eligible = case_eligible(records, cid)
 
         v01_means = baseline_row.get("dimension_means") or None
         # ``case_dimension_means`` keys by the long ``DIMENSION_IDS`` names
         # (e.g. ``delivery_necessity_sparsity``); the frozen baseline
         # ``dimension_means`` uses the short labels (``D5``). Relabel so the two
         # sides are directly comparable.
-        rc1_means_long = case_dimension_means(records, cid)
-        rc1_means = (
+        cand_means_long = case_dimension_means(records, cid)
+        cand_means = (
             None
-            if rc1_means_long is None
+            if cand_means_long is None
             else {
-                label: rc1_means_long[dim]
+                label: cand_means_long[dim]
                 for label, dim in _LABEL_TO_DIM.items()
             }
         )
 
-        pair_eligible = v01_eligible and rc1_eligible
+        pair_eligible = v01_eligible and cand_eligible
         if pair_eligible:
             exclusion_reason = None
-        elif not v01_eligible and not rc1_eligible:
+        elif not v01_eligible and not cand_eligible:
             exclusion_reason = "both_sides_ineligible"
         elif not v01_eligible:
             exclusion_reason = "v0_1_side_ineligible"
         else:
-            exclusion_reason = "rc_1_side_ineligible"
+            exclusion_reason = f"{cand}_side_ineligible"
 
-        rc1_flags = list(case_critical_flags(records, cid))
+        cand_flags = list(case_critical_flags(records, cid))
         v01_flags = list(baseline_row.get("critical_flags") or ())
 
         row: dict[str, Any] = {
@@ -800,37 +966,37 @@ def case_pair_rows(
             "block_name": case.block_name,
             "intent": case.intent,
             "v0_1_eligible": v01_eligible,
-            "rc_1_eligible": rc1_eligible,
+            f"{cand}_eligible": cand_eligible,
             "pair_eligible": pair_eligible,
             "exclusion_reason": exclusion_reason,
             "v0_1_successful_repeats": baseline_row.get("successful_repeats"),
-            "rc_1_successful_repeats": len(
+            f"{cand}_successful_repeats": len(
                 [r for r in records if r.case_id == cid and r.scores is not None]
             ),
             "v0_1_overall_mean": baseline_row.get("overall_mean"),
-            "rc_1_overall_mean": case_overall_mean(records, cid),
+            f"{cand}_overall_mean": case_overall_mean(records, cid),
             "v0_1_critical_flags": v01_flags,
-            "rc_1_critical_flags": rc1_flags,
-            "new_flags": sorted(set(rc1_flags) - set(v01_flags)),
-            "removed_flags": sorted(set(v01_flags) - set(rc1_flags)),
+            f"{cand}_critical_flags": cand_flags,
+            "new_flags": sorted(set(cand_flags) - set(v01_flags)),
+            "removed_flags": sorted(set(v01_flags) - set(cand_flags)),
         }
-        for label in DIMENSION_LABELS:
-            v01_value = None if v01_means is None else v01_means.get(label)
-            rc1_value = None if rc1_means is None else rc1_means.get(label)
-            row[f"v0_1_{label}"] = v01_value
-            row[f"rc_1_{label}"] = rc1_value
+        for dim in DIMENSION_LABELS:
+            v01_value = None if v01_means is None else v01_means.get(dim)
+            cand_value = None if cand_means is None else cand_means.get(dim)
+            row[f"v0_1_{dim}"] = v01_value
+            row[f"{cand}_{dim}"] = cand_value
             # A missing side is NOT a zero: the delta is simply undefined.
-            row[f"delta_{label}"] = (
+            row[f"delta_{dim}"] = (
                 None
-                if not pair_eligible or v01_value is None or rc1_value is None
-                else _round4(rc1_value - v01_value)
+                if not pair_eligible or v01_value is None or cand_value is None
+                else _round4(cand_value - v01_value)
             )
         row["delta_overall_mean"] = (
             None
             if not pair_eligible
             or row["v0_1_overall_mean"] is None
-            or row["rc_1_overall_mean"] is None
-            else _round4(row["rc_1_overall_mean"] - row["v0_1_overall_mean"])
+            or row[f"{cand}_overall_mean"] is None
+            else _round4(row[f"{cand}_overall_mean"] - row["v0_1_overall_mean"])
         )
         rows.append(row)
 
@@ -840,7 +1006,7 @@ def case_pair_rows(
 def delta_stats(values: Sequence[float]) -> dict[str, Any]:
     """mean / median / 95% CI / improved-tied-worsened for paired deltas.
 
-    ``values`` are per-case deltas (rc.1 minus v0.1). Undefined deltas are
+    ``values`` are per-case deltas (candidate minus v0.1). Undefined deltas are
     excluded by the caller — a failed semantic repeat never contributes a zero.
     """
     vals = [float(v) for v in values]
@@ -890,9 +1056,15 @@ def delta_stats(values: Sequence[float]) -> dict[str, Any]:
     }
 
 
+#: Default candidate artifact-key label. ``run.candidate_label`` always wins
+#: when it is available; this only keeps the pure helpers callable standalone.
+DEFAULT_CANDIDATE_LABEL = CANDIDATE_LABELS[CANDIDATE_PROMPT_VERSION]
+
+
 def dimension_paired_stats(
     rows: Sequence[dict[str, Any]],
     dimension: str = PRIMARY_DIMENSION,
+    candidate_label: str = DEFAULT_CANDIDATE_LABEL,
 ) -> dict[str, Any]:
     """Paired delta statistics for one dimension over pair-eligible cases."""
     deltas = [
@@ -905,17 +1077,19 @@ def dimension_paired_stats(
         for r in rows
         if r["pair_eligible"] and r[f"v0_1_{dimension}"] is not None
     ]
-    rc1_values = [
-        r[f"rc_1_{dimension}"]
+    cand_values = [
+        r[f"{candidate_label}_{dimension}"]
         for r in rows
-        if r["pair_eligible"] and r[f"rc_1_{dimension}"] is not None
+        if r["pair_eligible"] and r[f"{candidate_label}_{dimension}"] is not None
     ]
     stats = delta_stats(deltas)
     stats.update(
         {
             "dimension": dimension,
             "v0_1_mean": _round4(statistics.fmean(v01_values)) if v01_values else None,
-            "rc_1_mean": _round4(statistics.fmean(rc1_values)) if rc1_values else None,
+            f"{candidate_label}_mean": (
+                _round4(statistics.fmean(cand_values)) if cand_values else None
+            ),
         }
     )
     return stats
@@ -924,8 +1098,9 @@ def dimension_paired_stats(
 def group_breakdown(
     rows: Sequence[dict[str, Any]],
     key: str,
+    candidate_label: str = DEFAULT_CANDIDATE_LABEL,
 ) -> dict[str, dict[str, Any]]:
-    """Per-group (intent / block) v0.1 mean, rc.1 mean and paired delta.
+    """Per-group (intent / block) v0.1 mean, candidate mean and paired delta.
 
     Groups are reported even when a group has no pair-eligible case, so a
     coverage gap is visible rather than silently absent.
@@ -945,42 +1120,49 @@ def group_breakdown(
                 r["case_id"] for r in members if not r["pair_eligible"]
             ),
         }
-        for label in DIMENSION_LABELS:
+        for dimension in DIMENSION_LABELS:
             v01 = [
-                r[f"v0_1_{label}"] for r in pairs if r[f"v0_1_{label}"] is not None
+                r[f"v0_1_{dimension}"] for r in pairs if r[f"v0_1_{dimension}"] is not None
             ]
-            rc1 = [
-                r[f"rc_1_{label}"] for r in pairs if r[f"rc_1_{label}"] is not None
+            cand = [
+                r[f"{candidate_label}_{dimension}"]
+                for r in pairs
+                if r[f"{candidate_label}_{dimension}"] is not None
             ]
             deltas = [
-                r[f"delta_{label}"] for r in pairs if r[f"delta_{label}"] is not None
+                r[f"delta_{dimension}"] for r in pairs if r[f"delta_{dimension}"] is not None
             ]
-            entry[label] = {
+            entry[dimension] = {
                 "v0_1_mean": _round4(statistics.fmean(v01)) if v01 else None,
-                "rc_1_mean": _round4(statistics.fmean(rc1)) if rc1 else None,
+                f"{candidate_label}_mean": (
+                    _round4(statistics.fmean(cand)) if cand else None
+                ),
                 "paired_delta": delta_stats(deltas),
             }
         out[name] = entry
     return out
 
 
-def critical_flag_comparison(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """v0.1 flags vs rc.1 flags over pair-eligible cases.
+def critical_flag_comparison(
+    rows: Sequence[dict[str, Any]],
+    candidate_label: str = DEFAULT_CANDIDATE_LABEL,
+) -> dict[str, Any]:
+    """v0.1 flags vs candidate flags over pair-eligible cases.
 
     Flags are reported as flags. They are never converted into a score.
     """
     pairs = [r for r in rows if r["pair_eligible"]]
 
     v01_counts: dict[str, int] = {}
-    rc1_counts: dict[str, int] = {}
+    cand_counts: dict[str, int] = {}
     new_counts: dict[str, int] = {}
     removed_counts: dict[str, int] = {}
 
     for row in pairs:
         for flag in row["v0_1_critical_flags"]:
             v01_counts[flag] = v01_counts.get(flag, 0) + 1
-        for flag in row["rc_1_critical_flags"]:
-            rc1_counts[flag] = rc1_counts.get(flag, 0) + 1
+        for flag in row[f"{candidate_label}_critical_flags"]:
+            cand_counts[flag] = cand_counts.get(flag, 0) + 1
         for flag in row["new_flags"]:
             new_counts[flag] = new_counts.get(flag, 0) + 1
         for flag in row["removed_flags"]:
@@ -989,11 +1171,13 @@ def critical_flag_comparison(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     return {
         "n_pair_eligible_cases": len(pairs),
         "v0_1_flag_counts": {k: v01_counts[k] for k in sorted(v01_counts)},
-        "rc_1_flag_counts": {k: rc1_counts[k] for k in sorted(rc1_counts)},
-        "new_flags_introduced_by_rc_1": {
+        f"{candidate_label}_flag_counts": {
+            k: cand_counts[k] for k in sorted(cand_counts)
+        },
+        f"new_flags_introduced_by_{candidate_label}": {
             k: new_counts[k] for k in sorted(new_counts)
         },
-        "flags_removed_by_rc_1": {
+        f"flags_removed_by_{candidate_label}": {
             k: removed_counts[k] for k in sorted(removed_counts)
         },
         "cases_with_new_flags": sorted(
@@ -1009,14 +1193,59 @@ def critical_flag_comparison(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def summarize_candidate_delivery_behavior(
+    run: DevelopmentEvaluationRun,
+) -> dict[str, Any]:
+    """Measure the candidate side's ACTUAL ``delivery_plan`` emptiness.
+
+    This is the diagnostic that exposes *delivery mode collapse*. It is read
+    from the candidate generation artifacts (``parsed.json``), never from the
+    Judge, and it reuses the runner's :func:`summarize_delivery_distribution`
+    so the two stages report identically.
+
+    A case with no parsed plan is reported separately and is NEVER counted as
+    "empty" — a generation failure is not sparsity.
+    """
+    records: list[dict[str, Any]] = []
+    for case in sorted(run.candidate_run.cases, key=lambda c: c.case_id):
+        parsed_path = Path(case.source_path) / "parsed.json"
+        if not parsed_path.is_file():
+            records.append(
+                {
+                    "case_id": case.case_id,
+                    "intent": case.intent,
+                    "delivery_plan_empty": None,
+                }
+            )
+            continue
+        plan = _read_json(parsed_path)
+        delivery_plan = plan.get("delivery_plan")
+        records.append(
+            {
+                "case_id": case.case_id,
+                "intent": case.intent,
+                "delivery_plan_empty": (
+                    None if delivery_plan is None else delivery_plan == {}
+                ),
+            }
+        )
+
+    report = summarize_delivery_distribution(records)
+    report["prompt_version"] = run.candidate_prompt_version
+    report["generation_run_id"] = run.candidate_generation_run_id
+    report["source"] = "cases/<case_id>/parsed.json (measured, not judged)"
+    return report
+
+
 def build_paired_comparison(
     run: DevelopmentEvaluationRun,
     rows: Sequence[dict[str, Any]],
 ) -> dict[str, Any]:
     """The full paired comparison block (Sections 5-11)."""
     total = len(rows)
+    cand = run.candidate_label
     v01_eligible = sum(1 for r in rows if r["v0_1_eligible"])
-    rc1_eligible = sum(1 for r in rows if r["rc_1_eligible"])
+    cand_eligible = sum(1 for r in rows if r[f"{cand}_eligible"])
     pairs = [r for r in rows if r["pair_eligible"]]
 
     return {
@@ -1024,7 +1253,7 @@ def build_paired_comparison(
         "coverage": {
             "total_cases": total,
             "v0_1_eligible": v01_eligible,
-            "rc_1_eligible": rc1_eligible,
+            f"{cand}_eligible": cand_eligible,
             "pair_eligible": len(pairs),
             "pair_coverage": (
                 _round4(len(pairs) / total) if total else None
@@ -1038,10 +1267,10 @@ def build_paired_comparison(
                     "block": r["block"],
                     "intent": r["intent"],
                     "v0_1_eligible": r["v0_1_eligible"],
-                    "rc_1_eligible": r["rc_1_eligible"],
+                    f"{cand}_eligible": r[f"{cand}_eligible"],
                     "exclusion_reason": r["exclusion_reason"],
                     "v0_1_successful_repeats": r["v0_1_successful_repeats"],
-                    "rc_1_successful_repeats": r["rc_1_successful_repeats"],
+                    f"{cand}_successful_repeats": r[f"{cand}_successful_repeats"],
                 }
                 for r in rows
                 if not r["pair_eligible"]
@@ -1065,7 +1294,7 @@ def build_paired_comparison(
                 "No arbitrary PASS threshold is set. The 95% CI and the "
                 "improved/tied/worsened split are the evidence."
             ),
-            **dimension_paired_stats(rows, PRIMARY_DIMENSION),
+            **dimension_paired_stats(rows, PRIMARY_DIMENSION, cand),
         },
         # ---- Secondary (Section 7) ----
         "secondary": {
@@ -1073,21 +1302,37 @@ def build_paired_comparison(
             "label": "Instructional Adequacy",
             "target": "improve or remain stable",
             "threshold": None,
-            **dimension_paired_stats(rows, SECONDARY_DIMENSION),
+            **dimension_paired_stats(rows, SECONDARY_DIMENSION, cand),
         },
         # ---- Protected (Section 8) ----
         "protected": {
-            dimension: dimension_paired_stats(rows, dimension)
+            dimension: dimension_paired_stats(rows, dimension, cand)
             for dimension in PROTECTED_DIMENSIONS
         },
         "protected_note": (
             "We look for meaningful systematic degradation on D1/D2/D3/D6. "
             "No hard numeric gate (such as -0.10) is imposed by design."
         ),
+        # ---- Measured delivery behaviour (Section 7, joint judgement) ----
+        "delivery_behavior": {
+            **summarize_candidate_delivery_behavior(run),
+            "must_be_read_with": (
+                f"{PRIMARY_DIMENSION} (Delivery Necessity / Sparsity)"
+            ),
+            "joint_judgement_note": (
+                "The Evaluator's D5 score and the measured delivery_plan "
+                "distribution are two DIFFERENT signals and MUST be read "
+                "together. A high D5 alone is NOT accepted as evidence: a "
+                "candidate that collapses delivery_plan to always-empty can "
+                "look sparse without being correct, which is exactly the "
+                "mode collapse risk D5 cannot see on its own. A non-empty "
+                "plan is likewise not automatically justified."
+            ),
+        },
         # ---- Breakdown (Section 9) ----
         "breakdown": {
-            "by_intent": group_breakdown(rows, "intent"),
-            "by_block": group_breakdown(rows, "block"),
+            "by_intent": group_breakdown(rows, "intent", cand),
+            "by_block": group_breakdown(rows, "block", cand),
             "focus": [
                 "explanation D4/D5",
                 "scaffolding D5",
@@ -1096,7 +1341,7 @@ def build_paired_comparison(
             ],
         },
         # ---- Critical flags (Section 10) ----
-        "critical_flags": critical_flag_comparison(rows),
+        "critical_flags": critical_flag_comparison(rows, cand),
         # ---- Interpretation framing (Section 11) ----
         "interpretation": {
             "kind": "development_evidence",
@@ -1108,6 +1353,16 @@ def build_paired_comparison(
                 "Protected: is there systematic degradation on D1/D2/D3/D6?",
                 "Coverage: is paired coverage sufficient to support a judgement?",
                 "Case diagnostics: which cases improved or regressed markedly?",
+                (
+                    "Delivery behaviour: is the measured empty/non-empty "
+                    "delivery_plan distribution consistent with the D5 "
+                    "movement, or does it suggest mode collapse?"
+                ),
+            ],
+            "must_be_read_together_with": [
+                f"paired_comparison.primary ({PRIMARY_DIMENSION} paired delta)",
+                "paired_comparison.delivery_behavior (measured distribution)",
+                "summary.delivery_behavior",
             ],
             "note": (
                 "This is development evidence, not held-out confirmatory "
@@ -1126,6 +1381,10 @@ def build_development_manifest(run: DevelopmentEvaluationRun) -> dict[str, Any]:
     """run_manifest.json for the paired development evaluation run."""
     baseline_manifest = run.baseline.manifest
     cand = run.candidate_run
+    # Artifact key for the candidate side: "v0_2_rc_1" / "v0_2_rc_2". It is
+    # built from the candidate LABEL (not the directory slug) so the rc.1 key
+    # is byte-identical to the one the rc.1 path has always produced.
+    side_key = f"v0_2_{run.candidate_label}"
 
     return {
         "run_id": run.run_id,
@@ -1142,7 +1401,8 @@ def build_development_manifest(run: DevelopmentEvaluationRun) -> dict[str, Any]:
         # ---- Both source runs are FINISHED runs, reused read-only ----
         "baseline_generation_runs": baseline_manifest.get("source_run_ids", []),
         "baseline_evaluation_run": run.baseline.run_id,
-        "candidate_generation_run": CANDIDATE_GENERATION_RUN_ID,
+        "candidate_prompt_version": run.candidate_prompt_version,
+        "candidate_generation_run": run.candidate_generation_run_id,
         "v0_1_generation_rerun": False,
         "v0_1_evaluation_rerun": False,
         # ---- Frozen protocol identity ----
@@ -1158,11 +1418,11 @@ def build_development_manifest(run: DevelopmentEvaluationRun) -> dict[str, Any]:
                 "source": "frozen Generator v0.1 baseline evaluation run "
                 "(reused read-only)",
             },
-            "v0_2_rc_1": {
+            side_key: {
                 "generator_version": cand.generator_version,
                 "prompt_version": cand.prompt_version,
                 "source": "candidate development generation run "
-                f"{CANDIDATE_GENERATION_RUN_ID} (reused read-only), "
+                f"{run.candidate_generation_run_id} (reused read-only), "
                 "evaluated in this run",
             },
         },
@@ -1225,7 +1485,8 @@ def build_development_summary(
         "completed_at": run.completed_at,
         "dry_run": run.dry_run,
         "baseline_evaluation_run": run.baseline.run_id,
-        "candidate_generation_run": CANDIDATE_GENERATION_RUN_ID,
+        "candidate_prompt_version": run.candidate_prompt_version,
+        "candidate_generation_run": run.candidate_generation_run_id,
         "case_ids_exact_match": run.integrity.case_ids_exact_match,
         "input_fingerprints_match": run.integrity.input_fingerprints_match,
         "evaluator_version": run.baseline.manifest.get("evaluator_version"),
@@ -1250,9 +1511,13 @@ def build_development_summary(
         ),
         "verdict": None,
         "verdict_note": (
-            "Prompt v0.2-rc.1 paired development comparison. Development "
-            "evidence only — no PASS/FAIL threshold is defined."
+            f"Prompt {run.candidate_prompt_version} paired development "
+            "comparison. Development evidence only — no PASS/FAIL threshold "
+            "is defined."
         ),
+        # Measured from the candidate artifacts, not judged. The D5 result must
+        # be read together with this (see paired_comparison.delivery_behavior).
+        "delivery_behavior": summarize_candidate_delivery_behavior(run),
     }
 
     if agg is not None:
@@ -1278,42 +1543,47 @@ def build_development_summary(
 # ---------------------------------------------------------------------------
 # Artifacts.
 # ---------------------------------------------------------------------------
-_PAIRED_CSV_HEADER: tuple[str, ...] = (
-    (
-        "case_id",
-        "block",
-        "intent",
-        "pair_eligible",
-        "v0_1_eligible",
-        "rc_1_eligible",
-        "exclusion_reason",
+def _paired_csv_header(
+    candidate_label: str = DEFAULT_CANDIDATE_LABEL,
+) -> tuple[str, ...]:
+    """CSV header for the paired comparison, labelled by candidate version."""
+    return (
+        (
+            "case_id",
+            "block",
+            "intent",
+            "pair_eligible",
+            "v0_1_eligible",
+            f"{candidate_label}_eligible",
+            "exclusion_reason",
+        )
+        + tuple(f"v0_1_{label}" for label in DIMENSION_LABELS)
+        + tuple(f"{candidate_label}_{label}" for label in DIMENSION_LABELS)
+        + tuple(f"delta_{label}" for label in DIMENSION_LABELS)
+        + (
+            "v0_1_overall_mean",
+            f"{candidate_label}_overall_mean",
+            "delta_overall_mean",
+            "v0_1_successful_repeats",
+            f"{candidate_label}_successful_repeats",
+            "v0_1_critical_flags",
+            f"{candidate_label}_critical_flags",
+            "new_flags",
+            "removed_flags",
+        )
     )
-    + tuple(f"v0_1_{label}" for label in DIMENSION_LABELS)
-    + tuple(f"rc_1_{label}" for label in DIMENSION_LABELS)
-    + tuple(f"delta_{label}" for label in DIMENSION_LABELS)
-    + (
-        "v0_1_overall_mean",
-        "rc_1_overall_mean",
-        "delta_overall_mean",
-        "v0_1_successful_repeats",
-        "rc_1_successful_repeats",
-        "v0_1_critical_flags",
-        "rc_1_critical_flags",
-        "new_flags",
-        "removed_flags",
-    )
-)
 
 
 def write_paired_comparison_csv(
     path: Path,
     rows: Sequence[dict[str, Any]],
+    candidate_label: str = DEFAULT_CANDIDATE_LABEL,
 ) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(list(_PAIRED_CSV_HEADER))
+        writer.writerow(list(_paired_csv_header(candidate_label)))
         for row in rows:
             writer.writerow(
                 [
@@ -1322,7 +1592,7 @@ def write_paired_comparison_csv(
                     row["intent"],
                     row["pair_eligible"],
                     row["v0_1_eligible"],
-                    row["rc_1_eligible"],
+                    row[f"{candidate_label}_eligible"],
                     row["exclusion_reason"] or "",
                 ]
                 + [
@@ -1330,7 +1600,9 @@ def write_paired_comparison_csv(
                     for label in DIMENSION_LABELS
                 ]
                 + [
-                    "" if row[f"rc_1_{label}"] is None else row[f"rc_1_{label}"]
+                    ""
+                    if row[f"{candidate_label}_{label}"] is None
+                    else row[f"{candidate_label}_{label}"]
                     for label in DIMENSION_LABELS
                 ]
                 + [
@@ -1342,15 +1614,15 @@ def write_paired_comparison_csv(
                     if row["v0_1_overall_mean"] is None
                     else row["v0_1_overall_mean"],
                     ""
-                    if row["rc_1_overall_mean"] is None
-                    else row["rc_1_overall_mean"],
+                    if row[f"{candidate_label}_overall_mean"] is None
+                    else row[f"{candidate_label}_overall_mean"],
                     ""
                     if row["delta_overall_mean"] is None
                     else row["delta_overall_mean"],
                     row["v0_1_successful_repeats"],
-                    row["rc_1_successful_repeats"],
+                    row[f"{candidate_label}_successful_repeats"],
                     "|".join(row["v0_1_critical_flags"]),
-                    "|".join(row["rc_1_critical_flags"]),
+                    "|".join(row[f"{candidate_label}_critical_flags"]),
                     "|".join(row["new_flags"]),
                     "|".join(row["removed_flags"]),
                 ]
@@ -1390,7 +1662,9 @@ def write_development_artifacts(
             key_header="block",
             extra_columns=("block_name",),
         )
-        write_paired_comparison_csv(out_dir / "paired_comparison.csv", rows)
+        write_paired_comparison_csv(
+            out_dir / "paired_comparison.csv", rows, run.candidate_label
+        )
 
     evaluations = out_dir / "evaluations.jsonl"
     if run.candidate_run.raw_evaluations:
