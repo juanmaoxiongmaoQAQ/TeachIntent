@@ -1,13 +1,18 @@
-"""CLI for the Prompt v0.2-rc.1 development generation runner.
+"""CLI for the Prompt v0.2 development generation runner (version-parameterized).
 
 Two explicit modes:
 
 * ``--dry-run``  — discover the 30 Pilot inputs, verify they match the canonical
   population (A=12, B=12, C=6, unique), and print the generation plan. No Hy3 /
   OpenRouter call is made and no result directory is created.
-* ``--execute``  — REAL generation of the 30 cases with the candidate Prompt
-  **v0.2-rc.1** through the frozen Generator service (``generate_speech_plan``).
-  Exactly one first-call attempt per case; no retry, no self-repair.
+* ``--execute``  — REAL generation of the 30 cases with the selected candidate
+  Prompt (**v0.2-rc.1** or **v0.2-rc.2**) through the frozen Generator service
+  (``generate_speech_plan``). Exactly one first-call attempt per case; no retry,
+  no self-repair.
+
+The candidate prompt is chosen with ``--prompt-version {v0.2-rc.1,v0.2-rc.2}``.
+It defaults to **v0.2-rc.1**, so the historical rc.1 path is unchanged and rc.2
+can never be selected silently — an rc.2 run always names itself explicitly.
 
 The experimental condition for ``--execute`` is STRICTLY FIXED and must not be
 influenced by ambient shell environment variables:
@@ -19,8 +24,13 @@ influenced by ambient shell environment variables:
   (``https://openrouter.ai/api/v1``) with model ``tencent/hy3``. Pre-existing
   ``HY3_BASE_URL`` / ``HY3_MODEL`` environment variables are deliberately ignored
   (the client is constructed explicitly, not via ``from_env``).
-* ``prompt_version="v0.2-rc.1"`` (explicit, never the service default),
-  ``temperature=0``, ``retry=False``, ``self_repair=False``.
+* ``prompt_version`` selected via ``--prompt-version`` (default ``v0.2-rc.1``),
+  passed explicitly to the Generator; ``temperature=0``, ``retry=False``,
+  ``self_repair=False``.
+
+Each candidate version writes to its own results directory
+(``results/prompt_v0_2_rc1_development/`` vs ``results/prompt_v0_2_rc2_development/``),
+so an rc.2 run can never overwrite the finished rc.1 run.
 
 Exactly one of ``--dry-run`` / ``--execute`` is required. Running with neither
 flag, or with both, fails fast with a usage message (exit 2) and never performs
@@ -39,6 +49,7 @@ from teachintent.prompt_development.development_runner import (
     API_GATEWAY,
     CANDIDATE_PROMPT_VERSION,
     GENERATOR_MODEL,
+    SUPPORTED_PROMPT_VERSIONS,
     run_development_batch,
 )
 
@@ -50,10 +61,13 @@ _EXECUTE_MODEL = GENERATOR_MODEL  # "tencent/hy3"
 
 # Explicit, unambiguous usage string shown on fail-fast (no flag / both flags).
 _USAGE = (
-    "usage: run_prompt_v0_2_rc1_development.py {--dry-run | --execute}\n"
+    "usage: run_prompt_v0_2_rc1_development.py {--dry-run | --execute} "
+    "[--prompt-version VERSION]\n"
     "  --dry-run   Discover + validate the 30 Pilot inputs and print the plan (no API call).\n"
-    "  --execute   REAL generation of the 30 cases with Prompt v0.2-rc.1 "
+    "  --execute   REAL generation of the 30 cases with the selected candidate Prompt "
     "(requires OPENROUTER_API_KEY).\n"
+    "  --prompt-version {v0.2-rc.1,v0.2-rc.2}\n"
+    "              Candidate Prompt to generate with (default: v0.2-rc.1).\n"
     "  Exactly one of --dry-run / --execute is required; neither or both is an error."
 )
 
@@ -90,7 +104,10 @@ def main(argv: list[str] | None = None, *, client: Any | None = None) -> int:
     """
     parser = argparse.ArgumentParser(
         prog="run_prompt_v0_2_rc1_development.py",
-        description="Prompt v0.2-rc.1 development generation runner.",
+        description=(
+            "Prompt v0.2 development generation runner "
+            "(--prompt-version v0.2-rc.1 | v0.2-rc.2; default v0.2-rc.1)."
+        ),
         usage=_USAGE,
         add_help=True,
     )
@@ -105,16 +122,36 @@ def main(argv: list[str] | None = None, *, client: Any | None = None) -> int:
     mode.add_argument(
         "--execute",
         action="store_true",
-        help="REAL generation of the 30 cases with Prompt v0.2-rc.1 (requires OPENROUTER_API_KEY).",
+        help="REAL generation of the 30 cases with the selected candidate Prompt "
+        "(requires OPENROUTER_API_KEY).",
+    )
+    # default=None so we can tell an explicit selection from the rc.1 default.
+    parser.add_argument(
+        "--prompt-version",
+        choices=list(SUPPORTED_PROMPT_VERSIONS),
+        default=None,
+        help="Candidate Prompt to generate with (default: v0.2-rc.1). "
+        "v0.2-rc.2 must be named explicitly.",
     )
     args = parser.parse_args(argv)
 
+    explicit_selection = args.prompt_version is not None
+    prompt_version = args.prompt_version or CANDIDATE_PROMPT_VERSION
+
     # ---- --dry-run: discovery + validation + plan, no API call, no artifacts ----
     if args.dry_run:
-        run_development_batch(None, dry_run=True, prompt_version=CANDIDATE_PROMPT_VERSION)
+        run_development_batch(
+            None, dry_run=True, prompt_version=prompt_version
+        )
         return 0
 
     # ---- --execute: real generation ----
+    # 0. State the selected prompt version unambiguously before any API contact,
+    #    so an rc.2 run can never be confused with the rc.1 default.
+    print(
+        f"prompt_version = {prompt_version} "
+        f"({'explicitly requested' if explicit_selection else 'default'})"
+    )
     # 1. Load .env (only to surface OPENROUTER_API_KEY if the user keeps it there;
     #    dotenv does NOT override already-set env vars, so this cannot clobber or
     #    pollute the fixed base_url/model below).
@@ -137,10 +174,34 @@ def main(argv: list[str] | None = None, *, client: Any | None = None) -> int:
         )
 
     # 4. Run: explicit candidate prompt_version; never the service default.
-    run_development_batch(
-        client, dry_run=False, prompt_version=CANDIDATE_PROMPT_VERSION
+    manifest = run_development_batch(
+        client, dry_run=False, prompt_version=prompt_version
     )
+    _print_delivery_distribution(manifest)
     return 0
+
+
+def _print_delivery_distribution(manifest: dict) -> None:
+    """Print the empty vs. non-empty ``delivery_plan`` diagnostic for a finished run.
+
+    Reporting only — no threshold is evaluated or implied.
+    """
+    dist = manifest.get("delivery_distribution")
+    if not dist:
+        return
+    print()
+    print("delivery_plan distribution")
+    print(f"  total cases = {dist['total_cases']}")
+    print(f"  empty = {dist['empty_count']}")
+    print(f"  non-empty = {dist['non_empty_count']}")
+    print(f"  without parsed plan = {dist['without_parsed_plan']}")
+    print("  by intent (empty / non-empty):")
+    for intent, bucket in dist["by_intent"].items():
+        print(
+            f"    {intent:<20} {bucket['empty']} / {bucket['non_empty']}"
+        )
+    ids = dist["non_empty_case_ids"]
+    print(f"  non-empty case IDs = {ids if ids else '[]'}")
 
 
 if __name__ == "__main__":

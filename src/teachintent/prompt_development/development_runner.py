@@ -60,14 +60,22 @@ from ..prompts.registry import build_speech_plan_prompt_for_version
 __all__ = [
     "GENERATOR_VERSION",
     "CANDIDATE_PROMPT_VERSION",
+    "PROMPT_VERSION_RC2",
+    "SUPPORTED_PROMPT_VERSIONS",
+    "PEDAGOGICAL_INTENTS",
     "GENERATOR_MODEL",
     "TEMPERATURE",
+    "API_GATEWAY",
     "CANONICAL_PILOT_RUNS",
+    "DEVELOPMENT_RESULTS_ROOT",
+    "DEVELOPMENT_RESULTS_ROOT_RC2",
     "DevelopmentCase",
     "DevelopmentValidationError",
     "canonical_population_case_ids",
     "discover_canonical_inputs",
     "validate_development_inputs",
+    "results_root_for_prompt_version",
+    "summarize_delivery_distribution",
     "run_development_batch",
 ]
 
@@ -80,12 +88,33 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 # layer is selected separately via prompt_version; this pins the pipeline version.
 GENERATOR_VERSION = "v0.1"
 
-# Candidate prompt under development — passed EXPLICITLY to generate_speech_plan.
+# Registered candidate prompt versions this runner may generate with.
+#
+# "v0.2-rc.1" remains the DEFAULT so the existing rc.1 path is byte-identical to
+# before; "v0.2-rc.2" must be selected EXPLICITLY (``--prompt-version v0.2-rc.2``)
+# and is never a silent default. Both are always passed EXPLICITLY to
+# ``generate_speech_plan`` — the service default is never relied upon.
 CANDIDATE_PROMPT_VERSION = "v0.2-rc.1"
+PROMPT_VERSION_RC2 = "v0.2-rc.2"
+SUPPORTED_PROMPT_VERSIONS: tuple[str, ...] = (
+    CANDIDATE_PROMPT_VERSION,
+    PROMPT_VERSION_RC2,
+)
 
 GENERATOR_MODEL = "tencent/hy3"
 TEMPERATURE = 0
 API_GATEWAY = "openrouter"
+
+# The six pedagogical intents present in the canonical 30-case population
+# (5 cases each). Used for the delivery-plan distribution breakdown.
+PEDAGOGICAL_INTENTS: tuple[str, ...] = (
+    "elicitation",
+    "scaffolding",
+    "explanation",
+    "corrective_feedback",
+    "supportive_feedback",
+    "extension",
+)
 
 # The three canonical Pilot runs reused as the v0.1 comparison baseline.
 CANONICAL_PILOT_RUNS: dict[str, str] = {
@@ -96,6 +125,7 @@ CANONICAL_PILOT_RUNS: dict[str, str] = {
 
 PILOT_RESULTS_ROOT = _REPO_ROOT / "results" / "pilot"
 DEVELOPMENT_RESULTS_ROOT = _REPO_ROOT / "results" / "prompt_v0_2_rc1_development"
+DEVELOPMENT_RESULTS_ROOT_RC2 = _REPO_ROOT / "results" / "prompt_v0_2_rc2_development"
 
 # Source-of-truth population: the same block datasets the canonical Pilot runs
 # were generated from. Used only to verify the recovered case IDs match exactly.
@@ -226,6 +256,114 @@ def validate_development_inputs(cases: list[DevelopmentCase]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Prompt-version routing.
+# ---------------------------------------------------------------------------
+def results_root_for_prompt_version(prompt_version: str) -> Path:
+    """Return the results directory a development run for *prompt_version* writes to.
+
+    Each supported candidate version owns a separate directory, so an rc.2 run can
+    never overwrite the finished rc.1 run. Unknown versions fail fast (before any
+    API call or directory creation).
+
+    The mapping is built from the module-level roots at call time (rather than
+    captured once into a dict) so each root remains individually overridable.
+    """
+    roots = {
+        CANDIDATE_PROMPT_VERSION: DEVELOPMENT_RESULTS_ROOT,
+        PROMPT_VERSION_RC2: DEVELOPMENT_RESULTS_ROOT_RC2,
+    }
+    try:
+        return roots[prompt_version]
+    except KeyError:
+        raise DevelopmentValidationError(
+            f"unsupported prompt_version {prompt_version!r}; "
+            f"supported: {sorted(roots)}"
+        ) from None
+
+
+# ---------------------------------------------------------------------------
+# Delivery-plan distribution diagnostic.
+# ---------------------------------------------------------------------------
+def summarize_delivery_distribution(case_records: list[dict]) -> dict:
+    """Report empty vs. non-empty ``delivery_plan`` across a finished run.
+
+    This is the diagnostic that exposes *delivery mode collapse* — a candidate
+    prompt that mechanically emits ``delivery_plan: {}`` for every case (rc.1
+    measured 30/30 empty). It reports faithfully and sets NO pass/fail threshold.
+
+    Parameters
+    ----------
+    case_records:
+        One dict per case, each carrying ``case_id``, ``intent`` and
+        ``delivery_plan_empty`` — where the latter is ``True`` for ``{}``,
+        ``False`` for a non-empty object, or ``None`` when no plan was parsed
+        (generation/parsing failure). Failures are reported separately and are
+        NEVER counted as "empty".
+
+    Returns a report with total counts, a per-intent breakdown, and the explicit
+    list of non-empty case IDs.
+    """
+    by_intent: dict[str, dict] = {
+        intent: {
+            "total": 0,
+            "empty": 0,
+            "non_empty": 0,
+            "without_parsed_plan": 0,
+            "non_empty_case_ids": [],
+        }
+        for intent in PEDAGOGICAL_INTENTS
+    }
+
+    empty_ids: list[str] = []
+    non_empty_ids: list[str] = []
+    without_plan_ids: list[str] = []
+
+    for record in case_records:
+        case_id = record["case_id"]
+        intent = record.get("intent")
+        bucket = by_intent.setdefault(
+            intent or "unknown",
+            {
+                "total": 0,
+                "empty": 0,
+                "non_empty": 0,
+                "without_parsed_plan": 0,
+                "non_empty_case_ids": [],
+            },
+        )
+        bucket["total"] += 1
+
+        flag = record.get("delivery_plan_empty")
+        if flag is None:
+            bucket["without_parsed_plan"] += 1
+            without_plan_ids.append(case_id)
+        elif flag:
+            bucket["empty"] += 1
+            empty_ids.append(case_id)
+        else:
+            bucket["non_empty"] += 1
+            bucket["non_empty_case_ids"].append(case_id)
+            non_empty_ids.append(case_id)
+
+    return {
+        "total_cases": len(case_records),
+        "with_parsed_plan": len(empty_ids) + len(non_empty_ids),
+        "without_parsed_plan": len(without_plan_ids),
+        "empty_count": len(empty_ids),
+        "non_empty_count": len(non_empty_ids),
+        "empty_case_ids": sorted(empty_ids),
+        "non_empty_case_ids": sorted(non_empty_ids),
+        "without_parsed_plan_case_ids": sorted(without_plan_ids),
+        "by_intent": by_intent,
+        "note": (
+            "Diagnostic only — no pass/fail threshold is defined. "
+            "Cases without a parsed plan are excluded from the empty/non-empty "
+            "counts rather than being treated as empty."
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Stage-outcome derivation (mirrors pilot_runner._stage_outcome; offline).
 # ---------------------------------------------------------------------------
 def _stage_outcome(exc: GeneratorError | None) -> dict:
@@ -302,13 +440,23 @@ def run_development_batch(
         If True, only discover + validate + print the plan; no Hy3 call, no
         artifacts written. If False, regenerate all 30 cases and write artifacts.
     output_dir:
-        Where to write the run (defaults to ``results/prompt_v0_2_rc1_development``).
+        Where to write the run. When ``None``, the directory is selected by
+        *prompt_version* (rc.1 -> ``results/prompt_v0_2_rc1_development``,
+        rc.2 -> ``results/prompt_v0_2_rc2_development``), so the two candidates
+        can never overwrite one another.
     prompt_version:
-        Passed EXPLICITLY to ``generate_speech_plan``. Defaults to the candidate
-        ``v0.2-rc.1``; callers must not rely on the service default.
+        Passed EXPLICITLY to ``generate_speech_plan`` and selects the run's
+        results directory. Defaults to the candidate ``v0.2-rc.1``; callers must
+        not rely on the service default. ``v0.2-rc.2`` must be requested
+        explicitly — it is never a silent default.
 
     Returns a summary dict (dry-run) or the run manifest dict (real run).
     """
+    if prompt_version not in SUPPORTED_PROMPT_VERSIONS:
+        raise DevelopmentValidationError(
+            f"unsupported prompt_version {prompt_version!r}; "
+            f"supported: {list(SUPPORTED_PROMPT_VERSIONS)}"
+        )
     cases = discover_canonical_inputs()
     validation = validate_development_inputs(cases)
 
@@ -348,7 +496,11 @@ def _generate_batch(
     output_dir: str | Path | None,
 ) -> dict:
     """Regenerate each case once (no retry, no self-repair) and write artifacts."""
-    out_root = Path(output_dir) if output_dir else DEVELOPMENT_RESULTS_ROOT
+    # Version-specific results directory; an unknown version fails fast before
+    # anything is written.
+    out_root = Path(output_dir) if output_dir else results_root_for_prompt_version(
+        prompt_version
+    )
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run_started = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -469,15 +621,26 @@ def _generate_batch(
             },
         )
 
+        # Delivery-plan emptiness is derived from the parsed plan only. When no
+        # plan was parsed (API/parsing failure) it stays None so the distribution
+        # never mis-counts a failure as an "empty" delivery plan.
+        delivery_plan_empty: bool | None = None
+        if parsed_doc is not None:
+            delivery_plan_empty = not parsed_doc.get("delivery_plan")
+
         case_records.append(
             {
                 "case_id": case.case_id,
                 "block": case.block,
+                "intent": (case.input_doc.get("pedagogical_intent") or {}).get(
+                    "primary"
+                ),
                 "outcome": outcome,
                 "duration_seconds": round(duration, 3),
                 "exception_class": type(exc).__name__ if exc is not None else None,
                 "prompt_version": resolved_prompt_version,
                 "structural_passed": structural_passed,
+                "delivery_plan_empty": delivery_plan_empty,
             }
         )
 
@@ -513,6 +676,9 @@ def _generate_batch(
             "structural_failure": len(case_records) - structural_success,
             "first_call_validity": first_call_validity,
         },
+        # Delivery mode diagnostic (empty vs. non-empty delivery_plan). Reports
+        # faithfully; defines no pass/fail threshold.
+        "delivery_distribution": summarize_delivery_distribution(case_records),
         "cases": case_records,
     }
     _write_json(out_root / run_id / "run_manifest.json", manifest)

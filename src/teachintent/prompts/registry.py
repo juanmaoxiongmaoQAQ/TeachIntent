@@ -1,10 +1,11 @@
 """Explicit version selection for the Speech Plan Generator Prompt.
 
 v0.1 is preserved untouched in :mod:`teachintent.prompts.speech_plan`. v0.2-rc.1
-lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc1`. This registry adds a
-minimal, explicit selection API on top of the existing prompts package so that a
-generation run can request a specific prompt version without the generator
-implementation needing to hard-code which one it imports.
+lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc1`, and v0.2-rc.2 (a minimal
+correction of rc.1) lives in :mod:`teachintent.prompts.speech_plan_v0_2_rc2`. This
+registry adds a minimal, explicit selection API on top of the existing prompts
+package so that a generation run can request a specific prompt version without the
+generator implementation needing to hard-code which one it imports.
 
 The DEFAULT version is ``v0.1`` — call sites that do not opt into selection get
 byte-identical behavior to the original ``build_speech_plan_prompt``. The generator
@@ -26,10 +27,17 @@ from .speech_plan_v0_2_rc1 import (
 from .speech_plan_v0_2_rc1 import (
     build_speech_plan_prompt as _build_v0_2_rc1,
 )
+from .speech_plan_v0_2_rc2 import (
+    PROMPT_VERSION as PROMPT_VERSION_V0_2_RC2,
+)
+from .speech_plan_v0_2_rc2 import (
+    build_speech_plan_prompt as _build_v0_2_rc2,
+)
 
 __all__ = [
     "PROMPT_VERSION_V0_1",
     "PROMPT_VERSION_V0_2_RC1",
+    "PROMPT_VERSION_V0_2_RC2",
     "SpeechPlanPrompt",
     "UnknownPromptVersionError",
     "SPEECH_PLAN_PROMPTS",
@@ -50,6 +58,7 @@ class UnknownPromptVersionError(ValueError):
 SPEECH_PLAN_PROMPTS: dict[str, tuple[str, Callable[[dict], SpeechPlanPrompt]]] = {
     PROMPT_VERSION_V0_1: (PROMPT_VERSION_V0_1, _build_v0_1),
     PROMPT_VERSION_V0_2_RC1: (PROMPT_VERSION_V0_2_RC1, _build_v0_2_rc1),
+    PROMPT_VERSION_V0_2_RC2: (PROMPT_VERSION_V0_2_RC2, _build_v0_2_rc2),
 }
 
 
