@@ -1,0 +1,13 @@
+case_id,block,difficulty,intent,v0_1_generation_valid,v0_2_generation_valid,v0_1_finish_reason,v0_2_finish_reason,v0_1_evaluation_available,v0_2_evaluation_available,pair_eligible,v0_1_D1,v0_1_D2,v0_1_D3,v0_1_D4,v0_1_D5,v0_1_D6,v0_2_D1,v0_2_D2,v0_2_D3,v0_2_D4,v0_2_D5,v0_2_D6,delta_D1,delta_D2,delta_D3,delta_D4,delta_D5,delta_D6,v0_1_critical_flags,v0_2_critical_flags,v0_1_delivery_empty,v0_2_delivery_empty,v0_1_delivery_control_count,v0_2_delivery_control_count,failure_reason
+RS-V1-ELI-STD-01,standard,standard,elicitation,true,true,,,false,true,False,,,,,,,4,4,4,4,4,4,,,,,,,,,false,true,4,0,v0_1_evaluation_unavailable:exhausted_max_attempts
+RS-V1-ELI-CHX-01,cross_domain,challenging,elicitation,true,true,,,false,false,False,,,,,,,,,,,,,,,,,,,,,false,true,1,0,v0_1_evaluation_unavailable:exhausted_max_attempts|v0_2_evaluation_unavailable:exhausted_max_attempts
+RS-V1-SCA-STD-01,standard,standard,scaffolding,true,true,,,true,true,True,4,4,4,3,3,4,4,4,4,4,4,4,0,0,0,1,1,0,,,false,true,8,0,
+RS-V1-SCA-CHA-01,hard_adversarial,challenging,scaffolding,true,true,,,false,true,False,,,,,,,4,4,4,4,4,4,,,,,,,,,false,false,9,1,v0_1_evaluation_unavailable:exhausted_max_attempts
+RS-V1-EXP-STD-01,standard,standard,explanation,true,true,,,true,false,False,4,4,4,4,3,4,,,,,,,,,,,,,,,false,true,11,0,v0_2_evaluation_unavailable:exhausted_max_attempts
+RS-V1-EXP-CHX-01,cross_domain,challenging,explanation,true,true,,,true,true,True,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,,,true,true,0,0,
+RS-V1-COR-STD-01,standard,standard,corrective_feedback,true,true,,,true,false,False,4,4,4,4,3,4,,,,,,,,,,,,,,,false,true,15,0,v0_2_evaluation_unavailable:exhausted_max_attempts
+RS-V1-COR-CHA-01,hard_adversarial,challenging,corrective_feedback,true,true,,,true,true,True,4,4,3,4,3,4,4,4,4,4,4,4,0,0,1,0,1,0,,,false,false,3,1,
+RS-V1-SUP-STD-01,standard,standard,supportive_feedback,true,true,,,true,false,False,4,4,4,4,3,4,,,,,,,,,,,,,,,false,true,9,0,v0_2_evaluation_unavailable:exhausted_max_attempts
+RS-V1-SUP-CHX-01,cross_domain,challenging,supportive_feedback,true,true,,,true,true,True,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,,,false,true,8,0,
+RS-V1-EXT-STD-01,standard,standard,extension,true,true,,,true,true,True,4,4,4,4,3,4,4,4,4,4,4,4,0,0,0,0,1,0,,,false,true,5,0,
+RS-V1-EXT-CHA-01,hard_adversarial,challenging,extension,true,false,,,true,false,False,4,4,4,4,4,4,,,,,,,,,,,,,,,false,,1,,v0_2_generation_failure:Hy3APIError|v0_2_generation_error:Hy3APIError|v0_2_evaluation_unavailable:generation_no_response

@@ -1,0 +1,112 @@
+{
+  "export_version": "public-results-v1",
+  "generated_at": "2026-09-02T16:52:49Z",
+  "output_files": {
+    "README.md": {
+      "path": "public_results/README.md",
+      "sha256": "a86e2511159714f5cede157263bb6da68549647a5ce6b70238c78cab82091d32"
+    },
+    "evaluator_validation_families.csv": {
+      "path": "public_results/evaluator_validation_families.csv",
+      "sha256": "829e7f0ab01bd2e767943b412dd5256595d18a7ec2abb37460f2d64af6826dd2"
+    },
+    "evaluator_validation_pairs.csv": {
+      "path": "public_results/evaluator_validation_pairs.csv",
+      "sha256": "0318efed08ad95ec2d7f2cee2d760a87d1aaa2e67932863e11add5c03ecf2f8f"
+    },
+    "generator_v0_1_baseline_results.csv": {
+      "path": "public_results/generator_v0_1_baseline_results.csv",
+      "sha256": "61a11a89c25f5ef14a77c6648ac6bed389e79ebdb1556e90186ca33b7651ecc3"
+    },
+    "prompt_v0_2_rc1_development_results.csv": {
+      "path": "public_results/prompt_v0_2_rc1_development_results.csv",
+      "sha256": "83ad3b810f793d300f25b614c6286072ae7b6692b63add01d80b16c8b0807d1b"
+    },
+    "prompt_v0_2_rc2_development_results.csv": {
+      "path": "public_results/prompt_v0_2_rc2_development_results.csv",
+      "sha256": "1ec994f71e2778af48416376396e8f0a26777d462375e83c486362815e718c20"
+    },
+    "release_sanity_results.csv": {
+      "path": "public_results/release_sanity_results.csv",
+      "sha256": "62ea5035c74e9ac1cbe49d96ad663f94de4e0d823e4ea2ab153157cc09e7e6d7"
+    }
+  },
+  "output_row_counts": {
+    "evaluator_validation_families.csv": 8,
+    "evaluator_validation_pairs.csv": 24,
+    "generator_v0_1_baseline_results.csv": 30,
+    "prompt_v0_2_rc1_development_results.csv": 30,
+    "prompt_v0_2_rc2_development_results.csv": 30,
+    "release_sanity_results.csv": 12
+  },
+  "source_file_sha256": {
+    "results/evaluator_diagnostic_confirmatory/20260829T154127Z/family_metrics.csv": "829e7f0ab01bd2e767943b412dd5256595d18a7ec2abb37460f2d64af6826dd2",
+    "results/evaluator_diagnostic_confirmatory/20260829T154127Z/pair_metrics.csv": "0318efed08ad95ec2d7f2cee2d760a87d1aaa2e67932863e11add5c03ecf2f8f",
+    "results/evaluator_diagnostic_confirmatory/20260829T154127Z/run_manifest.json": "4ded233a21362aae820b085c5aa3e81961ed1490143307da3a1132b2644eb51a",
+    "results/generator_v0_1_baseline_evaluation_v0_2/20260830T095934Z/case_metrics.csv": "61a11a89c25f5ef14a77c6648ac6bed389e79ebdb1556e90186ca33b7651ecc3",
+    "results/generator_v0_1_baseline_evaluation_v0_2/20260830T095934Z/run_manifest.json": "f875987e54d5cea79c3efc7010895d899c72099dafa685fa1ba3b8ad8d04b2d4",
+    "results/prompt_v0_2_rc1_development_evaluation/20260831T103707Z/paired_comparison.csv": "83ad3b810f793d300f25b614c6286072ae7b6692b63add01d80b16c8b0807d1b",
+    "results/prompt_v0_2_rc1_development_evaluation/20260831T103707Z/run_manifest.json": "d3dbaddb8746f62debe00a32a32a88e4f8d5c3a9e5c592e1cb152649bed5c004",
+    "results/prompt_v0_2_rc2_development_evaluation/20260901T043729Z/paired_comparison.csv": "1ec994f71e2778af48416376396e8f0a26777d462375e83c486362815e718c20",
+    "results/prompt_v0_2_rc2_development_evaluation/20260901T043729Z/run_manifest.json": "12392b6f820188640c52867709c30e1b537c7070d74a76ed9e7ad46d52cb935d",
+    "results/release_sanity/20260901T093114Z/dataset/release_sanity_v1.jsonl": "2322c212230f8bf1418dfa54bf10af821725663b6caafd28de05a03fb0702031",
+    "results/release_sanity/20260901T093114Z/evaluations.jsonl": "ce49a9d1847c7f1e581dce952a468c246b3a0fc70695b6c0de7bc165f8004c67",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-CHA-01/v0_1/metadata.json": "c791809cf9b35d2865848d688d5299bd0d537619c824a61c3ed36cc2a9738438",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-CHA-01/v0_1/parsed.json": "7ffbde5fea276f1cc1390f036d08aa2d3a1e9493bf4e36fc39a7a844a34945a2",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-CHA-01/v0_2/metadata.json": "615b92082d3448300a80d476a7d634d9cec60c3d48165783502832a909933647",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-CHA-01/v0_2/parsed.json": "f7464110c2e64e1815ee35868da6894ae87db277f697bcc1c434431578e6a2b2",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-STD-01/v0_1/metadata.json": "b63269bfa41fa3d03dbbe73e2d0d1a8dfdf147feb4745e62b58041ad75fd87da",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-STD-01/v0_1/parsed.json": "e8da33687fd033c28e5c41bf8c3f02bc3f9e8adb99009276d2c46dc78c74e4d1",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-STD-01/v0_2/metadata.json": "4115ceaeb43fa2aa0d2027603bf80f3fdc340f6153fa873a14b16a81d74137d0",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-COR-STD-01/v0_2/parsed.json": "aebd394eb23cdbb927e02ab1eb8b13fbe02e64833fdbd60ff80154d64639f7a2",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-CHX-01/v0_1/metadata.json": "1219aa8bbd326fc6e2f55e6efaae1179d7fe4f695124a80bbeb4daba8be94f6e",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-CHX-01/v0_1/parsed.json": "664389cb4ed6d2ed5f4af850310e79f440f15c2182cf9aaa6bc11b72845c8b0e",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-CHX-01/v0_2/metadata.json": "d036b5a378bb6fe711ffcbf7b55694058fbb3e40a7c27f363bc2865defceaf94",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-CHX-01/v0_2/parsed.json": "de5d9cda9bc00e53a6a1ef6f22e06679c6fe922d591069d412b49d1d6941bcb8",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-STD-01/v0_1/metadata.json": "17f53368eab3e12d74c1718a33dda6506c650c92861113318ff2398a526a7b71",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-STD-01/v0_1/parsed.json": "94d33a8f9ff9d2c6b22267e4aa835b43fc640cb88d694f8587ebc1024bef28ec",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-STD-01/v0_2/metadata.json": "a7315f27704427c19ec9269ae0dde0ff6cf2a631b38398d57e0e8133d038d195",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-ELI-STD-01/v0_2/parsed.json": "d2d69e24521a4286f6a6f7bbf5f858caf84a8ac50ca90fe445dec5fccc032573",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-CHX-01/v0_1/metadata.json": "4aeef5129e252772cf6aab4016127c26e7a83bb8924a8a65183736e15ca8c3f4",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-CHX-01/v0_1/parsed.json": "a3a0c576e4707011184dd4e6a9be06cffc420bf42ffa02ead7f1022ce77b0c8a",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-CHX-01/v0_2/metadata.json": "360f9506d5da1f03a541ff9558724d02dc6e34efa9d577258c5704e763b65ae5",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-CHX-01/v0_2/parsed.json": "59d20da623a214fc4dcda06c518a5a2bcc31dacea9ca965b7f79971bcbc5b11b",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-STD-01/v0_1/metadata.json": "a13b1ee73e372b8f1141000f49c84081ab1bce2eef942aba411578d74b4f3106",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-STD-01/v0_1/parsed.json": "553ab6dd8e7cff40f278c92b6ec9680b0e61515e772e49a81dfd453a9eb03888",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-STD-01/v0_2/metadata.json": "3315f7504a26fb1cabbf4ddce45131f3cd91668757846065f51cdf12493ea16f",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXP-STD-01/v0_2/parsed.json": "72b6d8b8dde86a1315f8869e200f31db37e191e2d077e413d45ce6d16cbc5369",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-CHA-01/v0_1/metadata.json": "fa6b1f6c77752d657b700cce32ebd2aab63a0a66cc4cc6518dbb7a41d96e03b0",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-CHA-01/v0_1/parsed.json": "527407b5804968e59f9358512cccfb04571ee54db90a681a711181bdf714e3f2",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-CHA-01/v0_2/error.json": "c19ac8a339c8dfb5e7e0e3c9015401605ec3f5770a1b8b65c30f411cff78e5c9",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-CHA-01/v0_2/metadata.json": "d35ceb06f7c8479fcce3c72342883af5c4f14a74309147d0e0c1d374f8fe5885",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-STD-01/v0_1/metadata.json": "f333a1a382943e9c7212fed748251cdd19dfb368e9373cb57718756cc396f51f",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-STD-01/v0_1/parsed.json": "5d9ca4d6388dbbfecc0d5da7573b571f05b0d5a85e193ce933fa4d53709c724e",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-STD-01/v0_2/metadata.json": "70f5e7b552a4e91439317fed8237a5b1883e08e7f15b04da9092b5d8bbad1fd9",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-EXT-STD-01/v0_2/parsed.json": "61dc4c7e42527b916041e47fe1a5185655464001af04dc45bc497e415c25ea04",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-CHA-01/v0_1/metadata.json": "cf65c6ab6fb39154c6009264eb7384330bb8a6c0ef06d65e78ed29eeb7e3f171",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-CHA-01/v0_1/parsed.json": "f0517b4b036c595c78e8a0d0c104a7cc4dd5c0adc74c4d736c7cb34b487e1d6b",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-CHA-01/v0_2/metadata.json": "4cc2f01aea68032ce9d2d957f6238c6eb78cff6bab79c637e2f0b7c2b1206885",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-CHA-01/v0_2/parsed.json": "c9536823e0734fe0421205ac70feabf2cc729ef0488bfe48c38b62be2c7d6891",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-STD-01/v0_1/metadata.json": "2b13ec26862c13d4e86c32f7f304803e6365b1dedb57d6d93f22332bb6bcbae9",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-STD-01/v0_1/parsed.json": "05541076def72769eded89b5570530c7d4bcc6506e98a12bef60d8ecbb25a292",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-STD-01/v0_2/metadata.json": "547e71fc14bfddf7de363de82ccd59f1fbfce5060bc4f1adad63840a81f915b0",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SCA-STD-01/v0_2/parsed.json": "d5ba7760c91a84ce5bfc03dc322f39a77975ff259c3c0abe908d4d78184eb31e",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-CHX-01/v0_1/metadata.json": "2e94105706373e4dc75a2fc501fcc7e9a6cbae9660916ce6a28fb0b0a2126a4d",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-CHX-01/v0_1/parsed.json": "4686ead81a077465cca8f44d2f5ba01f9031614acaec47bcc8b08a1c25415230",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-CHX-01/v0_2/metadata.json": "5da938cb8e0933b472daf741150b643057d8fed0431db1abc8cd0bfd66bdb77d",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-CHX-01/v0_2/parsed.json": "c890710a3f9c1c830ccb664f5c9329774965277afc746e2b818d0f27c4f17b68",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-STD-01/v0_1/metadata.json": "ad72344576fb34ba16d83c19391e71e0306bf74e61053505e8c256dac302a7bf",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-STD-01/v0_1/parsed.json": "71b660dba71fd3933316776acbddd05e038c61de62a1e300e2fd68dee5d767f6",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-STD-01/v0_2/metadata.json": "4342ee1c038d9f3f16ff9f136fd6701f1eddc7b63ec7bb465494a5971d8c27c1",
+    "results/release_sanity/20260901T093114Z/generation/RS-V1-SUP-STD-01/v0_2/parsed.json": "a1eaf89356ac6e2f603fb7042f890fafbce31158eb02e32674ceb7c0ac2a986d",
+    "results/release_sanity/20260901T093114Z/paired_scores.csv": "b567a4acf4dc1e0e0010bcbe22ef707346d071aba330f5bfe069b555b1553d22",
+    "results/release_sanity/20260901T093114Z/run_manifest.json": "f561c46ce1668ab00c972c234f155a01565171dc5dc383974e53cedc46d5c84e"
+  },
+  "source_run_ids": {
+    "evaluator": "20260829T154127Z",
+    "rc_1_development": "20260831T103707Z",
+    "rc_2_development": "20260901T043729Z",
+    "release_sanity": "20260901T093114Z",
+    "v0_1_baseline": "20260830T095934Z"
+  }
+}

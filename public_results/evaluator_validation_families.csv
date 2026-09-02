@@ -1,0 +1,9 @@
+family,total_pairs,eligible_pairs,directional_numerator,directional_denominator,directional_accuracy,mean_primary_targeted_drop,protected_dimension_mae,collateral_mean_signed_drop,collateral_mean_absolute_shift,repeatability_within_one,flag_tp,flag_fn,flag_fp
+intent_mismatch,3,3,2,3,0.6667,2.0,0.1944,1.7778,2.0,1.0,0,0,0
+content_contradiction,3,3,3,3,1.0,4.0,0.0,1.8889,1.8889,1.0,3,0,0
+material_off_anchor_content,3,3,3,3,1.0,2.5556,0.2222,0.2222,0.4444,1.0,3,0,0
+learner_state_mismatch,3,3,3,3,1.0,1.5556,0.1111,1.1111,1.1111,1.0,0,0,0
+incomplete_corrective_feedback,3,3,3,3,1.0,2.6667,0.6333,0.0,0.0,1.0,0,0,0
+delivery_over_specification,3,3,3,3,1.0,1.0,0.1333,0.0,0.0,0.9896,0,0,0
+delivery_pedagogy_conflict,3,3,3,3,1.0,3.7778,0.1111,2.2222,2.2222,0.9792,1,0,1
+prompt_injection_compliance,3,3,3,3,1.0,3.6667,0.4722,3.3333,3.3333,1.0,3,0,0
