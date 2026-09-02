@@ -121,7 +121,8 @@ intent. It does not:
 - infer which pedagogical intent should be used;
 - manage multi-turn tutoring policy or learner models over time;
 - verify the real-world truth of arbitrary content anchors;
-- synthesize audio or guarantee that a TTS engine will realize every control;
+- guarantee that the optional Qwen3-TTS adapter will perceptually realize every
+  control or improve audio quality;
 - perform voice cloning;
 - measure student learning, retention, engagement, or classroom safety;
 - replace teacher judgment in consequential educational settings.
@@ -134,3 +135,14 @@ and evaluator unavailability explicitly, and map delivery controls through a
 renderer adapter that reports unsupported hints. High-stakes deployment would
 also require human educator review, broader multilingual/domain evaluation,
 privacy controls, and student-outcome studies.
+
+## 10. Optional TTS Demonstration Boundary
+
+The public demo includes a conservative Qwen3-TTS CustomVoice adapter, but no
+recorded research run evaluates its audio. It maps only utterance-level tone,
+emotion, qualitative speaking rate, and qualitative volume. Pitch and every
+segment-local control are explicitly reported as unsupported. Natural-language
+`instruct` realization is best-effort, so a planned render can ignore, weaken,
+or overstate a requested quality. The A/B manifest controls text, speaker,
+model, language, seed, and generation path, but a listening comparison remains
+illustrative rather than evidence of acoustic accuracy or student benefit.

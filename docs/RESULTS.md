@@ -166,6 +166,15 @@ bounded next step. One tone control—`温和而坚定，不包办代替`—supp
 pedagogical boundary. See
 [`examples/scaffolding.json`](../examples/scaffolding.json).
 
+### Supportive feedback — `RS-V1-SUP-CHX-01`
+
+The learner successfully transfers a graph-reading routine from geography to
+chemistry and asks whether the transfer is valid. v0.2 grounds its affirmation
+in that observable strategy and uses an empty delivery plan. The recorded
+Evaluator v0.1 scores are 4 on D1–D6, illustrating that omission is correct
+when no explicit delivery adaptation is necessary. See
+[`examples/supportive_feedback.json`](../examples/supportive_feedback.json).
+
 ### Preserved unfavorable result — `RS-V1-EXT-CHA-01`
 
 The single v0.2 generation returned no usable content with provider
@@ -179,4 +188,5 @@ The evidence supports a complete, runnable Task‑1 application and a validated
 custom evaluator. It also supports freezing v0.2 as a development-selected,
 sparser prompt. It does **not** establish learning-outcome effectiveness,
 multilingual generalization, TTS quality, or formal held-out superiority of
-Prompt v0.2.
+Prompt v0.2. The optional Qwen3-TTS A/B renderer is a product demonstration and
+does not add acoustic or confirmatory evidence to these results.

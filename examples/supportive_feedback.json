@@ -1,0 +1,105 @@
+{
+  "example_id": "release-sanity-supportive-feedback",
+  "title": "Supportive feedback: cross-domain graph reading",
+  "description": "A learner correctly transfers a graph-reading routine from geography to chemistry and seeks confirmation. The v0.2 plan shows that explicit delivery control is optional, not mandatory.",
+  "source": {
+    "evidence_kind": "existing_release_sanity_artifact",
+    "run_id": "20260901T093114Z",
+    "case_id": "RS-V1-SUP-CHX-01",
+    "provider": "openrouter",
+    "requested_model": "tencent/hy3",
+    "reported_model": "tencent/hy3",
+    "temperature": 0,
+    "structurally_valid": true
+  },
+  "input": {
+    "schema_version": "1.0.0-rc.2",
+    "output_language": "zh-CN",
+    "instructional_content": {
+      "subject": "scientific_data_literacy",
+      "topic": "graph_reading_transfer",
+      "content_anchor": "阅读数据图表时，先确认横轴、纵轴、单位和图例，再描述变化趋势，可以减少把变量或组别看反的错误。这一顺序适用于不同学科的折线图。若化学浓度—时间图的横轴是时间、纵轴是浓度，曲线下降表示所示物质浓度随时间降低。"
+    },
+    "pedagogical_context": {
+      "scenario": "学生曾在地理课学会先看坐标轴和图例，这次把同样顺序用于化学浓度—时间图，正确判断曲线含义，但不确定跨学科使用是否合理。",
+      "learner_utterance": "我先像读地理图那样看横轴和纵轴，再看曲线，判断这种物质的浓度在下降。把地理课的方法用到化学图里也算对吗？"
+    },
+    "learner": {
+      "level": "high_school",
+      "knowledge_state": "successful_cross_domain_transfer",
+      "affective_state": "seeking_confirmation"
+    },
+    "pedagogical_intent": {
+      "primary": "supportive_feedback"
+    }
+  },
+  "recorded_evaluations": {
+    "v0.1": {
+      "evidence_kind": "existing_release_sanity_evaluation",
+      "run_id": "20260901T093114Z",
+      "evaluator_version": "v0.1",
+      "judge_prompt_version": "v0.1",
+      "overall_score": 100.0,
+      "scores": {"D1": 4, "D2": 4, "D3": 4, "D4": 4, "D5": 4, "D6": 4},
+      "critical_flags": []
+    },
+    "v0.2": {
+      "evidence_kind": "existing_release_sanity_evaluation",
+      "run_id": "20260901T093114Z",
+      "evaluator_version": "v0.1",
+      "judge_prompt_version": "v0.1",
+      "overall_score": 100.0,
+      "scores": {"D1": 4, "D2": 4, "D3": 4, "D4": 4, "D5": 4, "D6": 4},
+      "critical_flags": []
+    }
+  },
+  "recorded_outputs": {
+    "v0.1": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "你刚才把地理课上看坐标轴和图例的顺序用到了化学图里，这个思路很对。"
+          },
+          {
+            "segment_id": "seg_02",
+            "text": "其实先确认横轴、纵轴、单位和图例再看趋势的方法，正适用于不同学科的折线图，所以你的用法完全正确。"
+          }
+        ]
+      },
+      "delivery_plan": {
+        "global": {
+          "attitudinal_tone": "肯定且安抚",
+          "emotion": "平静"
+        },
+        "segment_overrides": [
+          {
+            "segment_id": "seg_01",
+            "prominence_targets": [
+              {"text": "这个思路很对", "level": "strong"}
+            ]
+          },
+          {
+            "segment_id": "seg_02",
+            "prominence_targets": [
+              {"text": "正适用于不同学科的折线图", "level": "moderate"}
+            ]
+          }
+        ]
+      }
+    },
+    "v0.2": {
+      "schema_version": "1.0.0-rc.3",
+      "verbal_plan": {
+        "segments": [
+          {
+            "segment_id": "seg_01",
+            "text": "你刚才像读地理图那样先确认横轴、纵轴，再看曲线，并正确判断出这种物质的浓度在下降，这个跨学科迁移做得很好。其实先确认坐标轴再描述趋势的顺序正适用于不同学科的折线图，所以你的用法完全合理。"
+          }
+        ]
+      },
+      "delivery_plan": {}
+    }
+  }
+}

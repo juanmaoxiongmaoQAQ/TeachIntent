@@ -28,7 +28,7 @@ def test_default_demo_is_offline_and_shows_required_sections(capsys):
     assert "[Generated Speech Plan]" in output
     assert "verbal_plan:" in output
     assert "delivery_plan:" in output
-    assert "firm but supportive" in output
+    assert "安抚但纠正" in output
 
 
 def test_json_demo_payload_is_machine_readable(capsys):

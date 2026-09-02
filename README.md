@@ -44,8 +44,9 @@ python scripts/run_demo.py \
   --prompt-version v0.2
 ```
 
-The demo also supports `elicitation` and `scaffolding` examples and explicit
-`v0.1` / `v0.2` prompt selection. See [Demo](#demo) for all commands.
+The demo also supports `elicitation`, `scaffolding`, and `supportive-feedback`
+examples and explicit `v0.1` / `v0.2` prompt selection. See [Demo](#demo) for
+the optional visual and audio layers.
 
 ## User Scenario and Problem Definition
 
@@ -76,8 +77,10 @@ boundaries, adapt the instructional move, resist embedded instructions, and
 decide when a delivery control is genuinely useful. Hy3 performs this planning
 step while JSON Schema and Pydantic enforce the output contract.
 
-TeachIntent is **not** a TTS architecture. It does not synthesize audio, clone
-voices, infer the pedagogical intent, or manage multi-turn tutoring policy.
+TeachIntent is **not** a TTS architecture. Its research evidence ends at the
+validated Speech Plan. An optional Qwen3-TTS adapter can render a small,
+explicitly supported subset for demonstration, but does not clone voices,
+infer pedagogical intent, or manage multi-turn tutoring policy.
 
 ## Six Pedagogical Intents
 
@@ -148,6 +151,9 @@ Evaluator v0.1
         |
         v
 Machine-readable diagnostic artifact
+
+Optional demonstration path (outside the frozen research evaluation):
+Speech Plan --> conservative Qwen3-TTS CustomVoice adapter --> A/B WAV pair
 ```
 
 The generator deliberately performs no retry or self-repair: a first-call
@@ -224,6 +230,24 @@ boundaries are in [docs/FAILURE_ANALYSIS.md](docs/FAILURE_ANALYSIS.md).
 
 ## Demo
 
+### Visual demo (recommended for Task 1)
+
+The single-page app defaults to existing artifacts and makes no API call. It
+shows the teaching context, `verbal_plan`, `delivery_plan`, raw validated JSON,
+and matching recorded D1–D6 evidence:
+
+```bash
+python -m pip install -e ".[demo]"
+python scripts/run_visual_demo.py
+```
+
+Open `http://127.0.0.1:7860`. “Live Hy3” is opt-in and requires `HY3_API_KEY`;
+the app never runs a live Judge. Optional audio controls remain disabled until
+a compatible local Qwen3-TTS environment is installed or an existing WAV pair
+is found.
+
+### Terminal demo
+
 Recorded mode is safe for a screen recording and makes no network request:
 
 ```bash
@@ -248,6 +272,35 @@ The public examples are existing valid artifacts, not newly generated results:
 - [elicitation](examples/elicitation.json)
 - [corrective feedback with selective delivery control](examples/corrective_feedback.json)
 - [scaffolding with selective delivery control](examples/scaffolding.json)
+- [supportive feedback with intentionally empty delivery control](examples/supportive_feedback.json)
+
+### Optional local Qwen3-TTS A/B
+
+The renderer compares the same exact words, voice, model, language, seed, and
+generation path. Only the CustomVoice `instruct` value changes: neutral uses an
+empty instruction and planned uses the conservative `delivery_plan` mapping.
+
+> **Same words. Same voice. Different pedagogical delivery.**
+
+Qwen3-TTS is deliberately a separate, heavy optional install. The command may
+download model weights if the selected model is not already cached; do not run
+it unless that is intended and a compatible GPU environment is available.
+
+```bash
+python -m pip install -e ".[tts]"
+python scripts/render_tts_demo.py \
+  --example corrective-feedback \
+  --prompt-version v0.2 \
+  --speaker Vivian \
+  --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --device-map cuda:0 \
+  --dtype bfloat16
+```
+
+This creates `neutral.wav`, `planned.wav`, and an auditable
+`render_manifest.json` under the ignored `results/tts_demo/` tree. Unsupported
+pitch and segment-local controls are listed, not approximated. See
+[docs/TTS_RENDERER.md](docs/TTS_RENDERER.md).
 
 The <=2 minute recording plan is in
 [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
@@ -277,8 +330,10 @@ python scripts/validate_release_sanity.py
 ```
 
 Research runners under `scripts/` may make many paid API calls; read their
-frozen protocol before running them. `scripts/run_demo.py` calls no API unless
-`--live` is supplied.
+frozen protocol before running them. `scripts/run_demo.py` and
+`scripts/run_visual_demo.py` call no API unless live mode is explicitly
+selected. `scripts/render_tts_demo.py` runs a local model but may fetch weights
+through the model loader when they are not already cached.
 
 ## Repository Map
 
@@ -288,7 +343,7 @@ docs/                     contracts, protocols, public results, and analysis
 examples/                 recorded valid Hy3 input/output examples
 schemas/                  JSON Schema contracts
 scripts/                  demo, validators, and experiment entry points
-src/teachintent/          generator, evaluator, models, validators, runners
+src/teachintent/          generator, evaluator, renderers, models, runners
 tests/                    automated regression suite
 results/                  local immutable experiment evidence (git-ignored)
 ```
@@ -300,7 +355,9 @@ Task‑1 coverage is tracked in
 
 - The system plans one instructional turn; it does not select intent or manage a dialogue.
 - Pilot and sanity outputs are zh-CN; multilingual generalization is untested.
-- The plan is renderer-agnostic and no audio/TTS realization is evaluated.
+- The research evaluator assesses the pre-audio Speech Plan. The optional TTS
+  adapter is a best-effort demonstration; no audio quality, acoustic-control
+  accuracy, or listener outcome has been evaluated.
 - The evaluator is LLM-assisted and can suffer API, parsing, grounding, and judgment errors.
 - Generator experiments use small, self-authored datasets rather than classroom outcomes or educator ratings.
 - Prompt v0.2 has development and release-sanity support, but no paper-grade held-out confirmatory comparison.

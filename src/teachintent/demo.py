@@ -19,6 +19,7 @@ EXAMPLE_FILES = {
     "elicitation": REPO_ROOT / "examples" / "elicitation.json",
     "corrective-feedback": REPO_ROOT / "examples" / "corrective_feedback.json",
     "scaffolding": REPO_ROOT / "examples" / "scaffolding.json",
+    "supportive-feedback": REPO_ROOT / "examples" / "supportive_feedback.json",
 }
 PUBLIC_PROMPT_VERSIONS = ("v0.1", "v0.2")
 
@@ -62,6 +63,9 @@ def load_recorded_example(example_name: str, prompt_version: str) -> dict:
         "input": input_doc,
         "speech_plan": plan_doc,
         "prompt_version": prompt_version,
+        "recorded_evaluation": doc.get("recorded_evaluations", {}).get(
+            prompt_version
+        ),
     }
 
 

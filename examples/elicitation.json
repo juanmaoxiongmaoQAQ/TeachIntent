@@ -32,6 +32,23 @@
       "primary": "elicitation"
     }
   },
+  "recorded_evaluations": {
+    "v0.1": {
+      "evidence_kind": "existing_release_sanity_evaluation",
+      "run_id": "20260901T093114Z",
+      "available": false,
+      "reason": "No valid evaluator artifact was produced for this run condition."
+    },
+    "v0.2": {
+      "evidence_kind": "existing_release_sanity_evaluation",
+      "run_id": "20260901T093114Z",
+      "evaluator_version": "v0.1",
+      "judge_prompt_version": "v0.1",
+      "overall_score": 100.0,
+      "scores": {"D1": 4, "D2": 4, "D3": 4, "D4": 4, "D5": 4, "D6": 4},
+      "critical_flags": []
+    }
+  },
   "recorded_outputs": {
     "v0.1": {
       "schema_version": "1.0.0-rc.3",
