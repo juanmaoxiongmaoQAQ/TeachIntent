@@ -21,6 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_AUDIO_ROOT = REPO_ROOT / "results" / "tts_demo"
 PRIMARY_EXAMPLE = "corrective-feedback"
 PRIMARY_PROMPT_VERSION = "v0.2"
+REVIEWER_EXAMPLES = (
+    "corrective-feedback",
+    "scaffolding",
+    "supportive-feedback",
+)
 DEMO_CSS = """
 .ti-wrap {max-width: 1040px; margin: 0 auto;}
 .ti-header {padding: 28px 0 12px;}
@@ -62,9 +67,28 @@ EVALUATION_DIMENSIONS = {
 LiveRunner = Callable[[dict[str, Any], str], tuple[dict[str, Any], dict[str, Any]]]
 
 
+def _pedagogical_goal(intent: str) -> str:
+    if intent == "corrective_feedback":
+        return (
+            "Repair the misconception while keeping the student engaged and "
+            "respected."
+        )
+    if intent == "scaffolding":
+        return (
+            "Give a focused hint that helps the student take the next reasoning "
+            "step without taking over the work."
+        )
+    if intent == "supportive_feedback":
+        return (
+            "Recognize the student's progress and rebuild confidence without "
+            "turning the moment into a full explanation."
+        )
+    return f"Use {intent.replace('_', ' ')} to support the next learning move."
+
+
 def _context_markdown(input_doc: dict[str, Any]) -> str:
     context = input_doc["pedagogical_context"]
-    intent = input_doc["pedagogical_intent"]["primary"].replace("_", " ")
+    intent = input_doc["pedagogical_intent"]["primary"]
     return "\n".join(
         [
             "**Learner situation**",
@@ -75,10 +99,7 @@ def _context_markdown(input_doc: dict[str, Any]) -> str:
             "",
             "**Pedagogical goal**",
             "",
-            (
-                f"Use {intent} to repair the misconception while keeping the "
-                "student engaged and respected."
-            ),
+            _pedagogical_goal(intent),
         ]
     )
 
@@ -185,6 +206,7 @@ def build_visual_state(
     neutral, planned, output_dir = find_audio_pair(
         audio_root, example_name, prompt_version
     )
+    has_delivery_instruction = mapping.instruct != ""
     if neutral and planned:
         audio_status = (
             f"Loaded an existing local A/B pair from `{output_dir}`. {AB_STATEMENT}"
@@ -193,6 +215,11 @@ def build_visual_state(
         audio_status = (
             "No local A/B WAV pair exists for this selection. Audio is optional; "
             "install the TTS extra and render it explicitly on a compatible GPU."
+        )
+    if not has_delivery_instruction:
+        audio_status = (
+            f"{audio_status} This case has no additional delivery instruction; "
+            "planned TTS uses the same empty instruction as neutral TTS."
         )
 
     raw_payload = demo.build_demo_payload(example, mode=mode)
@@ -237,6 +264,21 @@ def _ui_outputs(state: dict[str, Any]) -> tuple[Any, ...]:
         state["audio_status"],
         json.dumps(mapping_report, ensure_ascii=False, indent=2),
     )
+
+
+def switch_recorded_example(
+    example_name: str,
+    audio_root: str | Path = DEFAULT_AUDIO_ROOT,
+) -> tuple[Any, ...]:
+    """Build UI outputs for a reviewer case switch; prompt is fixed to v0.2."""
+    if example_name not in REVIEWER_EXAMPLES:
+        raise ValueError(f"Unsupported reviewer example: {example_name}")
+    next_state = build_visual_state(
+        example_name,
+        PRIMARY_PROMPT_VERSION,
+        audio_root=Path(audio_root),
+    )
+    return _ui_outputs(next_state)
 
 
 def _render_audio_for_state(
@@ -296,6 +338,11 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
             "<h1>TeachIntent</h1>"
             "<p>让 AI Tutor 不仅知道说什么，也知道怎么说</p>"
             "</div>"
+        )
+        example_picker = gr.Dropdown(
+            choices=list(REVIEWER_EXAMPLES),
+            value=PRIMARY_EXAMPLE,
+            label="Demo case",
         )
 
         gr.Markdown("## Teaching scenario", elem_classes=["ti-section"])
@@ -372,6 +419,25 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                 )
             render_button = gr.Button("Render optional A/B audio locally")
 
+        case_outputs = [
+            state,
+            context,
+            verbal,
+            delivery,
+            raw_json,
+            evaluation,
+            evaluation_note,
+            neutral_audio,
+            planned_audio,
+            audio_status,
+            mapping_report,
+        ]
+        example_picker.change(
+            switch_recorded_example,
+            inputs=[example_picker, audio_root_box],
+            outputs=case_outputs,
+        )
+
         def render_ui(
             current_state: dict[str, Any],
             selected_speaker: str,
@@ -401,7 +467,11 @@ __all__ = [
     "DEFAULT_AUDIO_ROOT",
     "DEMO_CSS",
     "EVALUATION_DIMENSIONS",
+    "PRIMARY_EXAMPLE",
+    "PRIMARY_PROMPT_VERSION",
+    "REVIEWER_EXAMPLES",
     "build_gradio_app",
     "build_visual_state",
     "find_audio_pair",
+    "switch_recorded_example",
 ]

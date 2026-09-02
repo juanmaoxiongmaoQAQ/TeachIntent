@@ -2,7 +2,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from teachintent.visual_demo import build_visual_state, find_audio_pair
+import pytest
+
+from teachintent.visual_demo import (
+    REVIEWER_EXAMPLES,
+    build_visual_state,
+    find_audio_pair,
+    switch_recorded_example,
+)
+
+
+@pytest.mark.parametrize("example_name", REVIEWER_EXAMPLES)
+def test_reviewer_examples_build_visual_state(example_name: str) -> None:
+    state = build_visual_state(example_name, "v0.2")
+
+    assert state["mode"] == "recorded"
+    assert state["example_name"] == example_name
+    assert state["prompt_version"] == "v0.2"
+    assert state["context_markdown"]
+    assert state["verbal_markdown"]
+    assert state["delivery_markdown"]
 
 
 def test_offline_visual_state_uses_recorded_plan_and_evaluation() -> None:
@@ -40,6 +59,7 @@ def test_supportive_example_explains_empty_delivery() -> None:
     assert "No additional delivery controls" in state["delivery_markdown"]
     assert state["tts_instruction"] == ""
     assert state["supported_controls"] == []
+    assert "no additional delivery instruction" in state["audio_status"]
     assert len(state["evaluation_rows"]) == 6
 
 
@@ -56,6 +76,49 @@ def test_find_audio_pair_requires_both_files(tmp_path: Path) -> None:
     assert neutral == output_dir / "neutral.wav"
     assert planned == output_dir / "planned.wav"
     assert found_dir == output_dir
+
+
+def test_switch_recorded_example_refreshes_text_and_audio_paths(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "scaffolding" / "v0_2"
+    output_dir.mkdir(parents=True)
+    neutral_path = output_dir / "neutral.wav"
+    planned_path = output_dir / "planned.wav"
+    neutral_path.write_bytes(b"neutral")
+    planned_path.write_bytes(b"planned")
+
+    (
+        state,
+        context,
+        verbal,
+        delivery,
+        raw_json,
+        evaluation_rows,
+        evaluation_note,
+        neutral_audio,
+        planned_audio,
+        audio_status,
+        mapping_report,
+    ) = switch_recorded_example("scaffolding", tmp_path)
+
+    assert state["example_name"] == "scaffolding"
+    assert state["prompt_version"] == "v0.2"
+    assert "有限支架" in context
+    assert verbal
+    assert "How to say" not in delivery
+    assert '"pedagogical_intent": "scaffolding"' in raw_json
+    assert len(evaluation_rows) == 6
+    assert "No live judge call was made" in evaluation_note
+    assert neutral_audio == str(neutral_path)
+    assert planned_audio == str(planned_path)
+    assert "Loaded an existing local A/B pair" in audio_status
+    assert "planned_instruct" in mapping_report
+
+
+def test_switch_rejects_non_reviewer_example() -> None:
+    with pytest.raises(ValueError):
+        switch_recorded_example("elicitation")
 
 
 def test_live_mode_does_not_reuse_recorded_judge_evidence() -> None:
