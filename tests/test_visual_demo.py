@@ -5,9 +5,18 @@ from pathlib import Path
 import pytest
 
 from teachintent.visual_demo import (
+    CUSTOM_DELIVERY_STATUS,
+    CUSTOM_EMPTY_DELIVERY_MESSAGE,
+    CustomInputError,
+    PEDAGOGICAL_INTENTS,
     REVIEWER_EXAMPLES,
+    build_custom_input,
     build_visual_state,
     find_audio_pair,
+    generate_custom_ui,
+    generate_custom_visual_state,
+    is_recommended_showcase,
+    load_showcase_scenario_fields,
     switch_recorded_example,
 )
 
@@ -119,6 +128,220 @@ def test_switch_recorded_example_refreshes_text_and_audio_paths(
 def test_switch_rejects_non_reviewer_example() -> None:
     with pytest.raises(ValueError):
         switch_recorded_example("elicitation")
+
+
+def test_corrective_feedback_is_recommended_showcase() -> None:
+    assert is_recommended_showcase("corrective-feedback") is True
+    assert is_recommended_showcase("scaffolding") is False
+    assert is_recommended_showcase("supportive-feedback") is False
+
+
+def test_load_showcase_scenario_fills_input_fields_only() -> None:
+    (
+        content_anchor,
+        teaching_scenario,
+        learner_utterance,
+        learner_level,
+        knowledge_state,
+        affective_state,
+        pedagogical_intent,
+    ) = load_showcase_scenario_fields()
+
+    assert "加速度描述速度随时间的变化" in content_anchor
+    assert "速度大小不变" in teaching_scenario
+    assert "加速度就是0" in learner_utterance
+    assert learner_level == "high_school"
+    assert knowledge_state == "misconception"
+    assert affective_state == "slightly_frustrated"
+    assert pedagogical_intent == "corrective_feedback"
+
+
+def test_custom_fields_build_valid_input_doc() -> None:
+    input_doc = build_custom_input(
+        content_anchor="加速度描述速度变化。",
+        teaching_scenario="学生正在判断转弯车辆是否有加速度。",
+        learner_utterance="速度大小没变，所以没有加速度。",
+        learner_level="high_school",
+        knowledge_state="confuses speed magnitude with acceleration",
+        affective_state="slightly frustrated",
+        pedagogical_intent="corrective_feedback",
+    )
+
+    assert input_doc == {
+        "schema_version": "1.0.0-rc.2",
+        "output_language": "zh-CN",
+        "instructional_content": {"content_anchor": "加速度描述速度变化。"},
+        "pedagogical_context": {
+            "scenario": "学生正在判断转弯车辆是否有加速度。",
+            "learner_utterance": "速度大小没变，所以没有加速度。",
+        },
+        "learner": {
+            "level": "high_school",
+            "knowledge_state": "confuses speed magnitude with acceleration",
+            "affective_state": "slightly frustrated",
+        },
+        "pedagogical_intent": {"primary": "corrective_feedback"},
+    }
+
+
+def test_custom_optional_fields_are_omitted_when_empty() -> None:
+    input_doc = build_custom_input(
+        content_anchor="比例表示两个数量的相对关系。",
+        teaching_scenario="学生正在学习比例。",
+        learner_utterance="  ",
+        learner_level="middle_school",
+        knowledge_state="partial understanding",
+        affective_state="",
+        pedagogical_intent="scaffolding",
+    )
+
+    assert "learner_utterance" not in input_doc["pedagogical_context"]
+    assert "affective_state" not in input_doc["learner"]
+
+
+@pytest.mark.parametrize("intent", PEDAGOGICAL_INTENTS)
+def test_custom_input_accepts_all_six_intents(intent: str) -> None:
+    input_doc = build_custom_input(
+        content_anchor="核心知识点。",
+        teaching_scenario="学生正在学习。",
+        learner_utterance="",
+        learner_level="middle_school",
+        knowledge_state="partial understanding",
+        affective_state="",
+        pedagogical_intent=intent,
+    )
+
+    assert input_doc["pedagogical_intent"]["primary"] == intent
+
+
+def test_custom_empty_required_field_fails_before_live_runner() -> None:
+    calls = 0
+
+    def fake_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+        nonlocal calls
+        calls += 1
+        del input_doc, prompt_version
+        return {}, {}
+
+    with pytest.raises(CustomInputError):
+        generate_custom_visual_state(
+            content_anchor="",
+            teaching_scenario="学生正在学习。",
+            learner_utterance="",
+            learner_level="middle_school",
+            knowledge_state="partial understanding",
+            affective_state="",
+            pedagogical_intent="explanation",
+            live_runner=fake_live,
+        )
+    assert calls == 0
+
+
+def test_custom_generation_with_mock_live_runner_renders_speech_plan() -> None:
+    captured = {}
+
+    def fake_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+        captured["input_doc"] = input_doc
+        captured["prompt_version"] = prompt_version
+        return (
+            {
+                "schema_version": "1.0.0-rc.3",
+                "verbal_plan": {
+                    "segments": [
+                        {"segment_id": "seg_01", "text": "先看速度是否变化。"}
+                    ]
+                },
+                "delivery_plan": {
+                    "global": {
+                        "attitudinal_tone": "calm",
+                        "emotion": "focused",
+                        "prosody": {"speaking_rate": "slow"},
+                    }
+                },
+            },
+            {
+                "evidence_kind": "mock_live_not_research",
+                "prompt_version": "v0.2",
+            },
+        )
+
+    state = generate_custom_visual_state(
+        content_anchor="加速度描述速度大小或方向的变化。",
+        teaching_scenario="学生把速度大小不变等同于没有加速度。",
+        learner_utterance="转弯时速度没变，所以加速度是0。",
+        learner_level="high_school",
+        knowledge_state="misconception",
+        affective_state="slightly frustrated",
+        pedagogical_intent="corrective_feedback",
+        live_runner=fake_live,
+    )
+
+    assert captured["prompt_version"] == "v0.2"
+    assert captured["input_doc"]["schema_version"] == "1.0.0-rc.2"
+    assert state["status"] == "Generated live with Hy3 · Prompt v0.2"
+    assert "**Pedagogical intent**" in state["context_markdown"]
+    assert "`corrective_feedback`" in state["context_markdown"]
+    assert "Pedagogical goal" not in state["context_markdown"]
+    assert "Repair the misconception" not in state["context_markdown"]
+    assert "先看速度是否变化" in state["verbal_markdown"]
+    assert CUSTOM_DELIVERY_STATUS in state["delivery_markdown"]
+    assert "Tone" in state["delivery_markdown"]
+    assert "Audio rendering is available" in state["audio_status"]
+    assert '"prompt_version": "v0.2"' in state["source_json"]
+
+
+def test_custom_empty_delivery_is_explained_as_control_choice() -> None:
+    def fake_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+        del input_doc, prompt_version
+        return (
+            {
+                "schema_version": "1.0.0-rc.3",
+                "verbal_plan": {
+                    "segments": [{"segment_id": "seg_01", "text": "继续保持。"}]
+                },
+                "delivery_plan": {},
+            },
+            {"evidence_kind": "mock_live_not_research"},
+        )
+
+    state = generate_custom_visual_state(
+        content_anchor="比例表示两个数量的相对关系。",
+        teaching_scenario="学生已经正确完成一道比例题。",
+        learner_utterance="我这次好像算对了。",
+        learner_level="middle_school",
+        knowledge_state="emerging confidence",
+        affective_state="",
+        pedagogical_intent="supportive_feedback",
+        live_runner=fake_live,
+    )
+
+    assert state["delivery_markdown"] == CUSTOM_EMPTY_DELIVERY_MESSAGE
+    assert "failure" not in state["delivery_markdown"].lower()
+
+
+def test_custom_ui_live_runner_failure_returns_safe_error() -> None:
+    def fake_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+        del input_doc, prompt_version
+        raise RuntimeError(
+            "Authorization: Bearer sk-test-token from .env should not leak"
+        )
+
+    outputs = generate_custom_ui(
+        "知识点。",
+        "学生正在学习。",
+        "",
+        "middle_school",
+        "partial understanding",
+        "",
+        "elicitation",
+        live_runner=fake_live,
+    )
+
+    assert outputs[0].startswith("Hy3 generation failed:")
+    assert "Authorization: [redacted]" in outputs[0]
+    assert "sk-" not in outputs[0]
+    assert ".env" not in outputs[0]
+    assert outputs[2] == ""
 
 
 def test_live_mode_does_not_reuse_recorded_judge_evidence() -> None:

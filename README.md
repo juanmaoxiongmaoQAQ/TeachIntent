@@ -232,19 +232,21 @@ boundaries are in [docs/FAILURE_ANALYSIS.md](docs/FAILURE_ANALYSIS.md).
 
 ### Visual demo (recommended for Task 1)
 
-The single-page app defaults to existing artifacts and makes no API call. It
-shows the teaching context, `verbal_plan`, `delivery_plan`, raw validated JSON,
-and matching recorded D1–D6 evidence:
+The single-page app has two modes:
+
+- `Explore examples` uses existing recorded artifacts and makes no API call.
+- `Try your own scenario` builds a validated TeachIntent input and calls Hy3
+  once through the existing live generation pipeline. It requires `HY3_API_KEY`
+  in local `.env`.
 
 ```bash
 python -m pip install -e ".[demo]"
 python scripts/run_visual_demo.py
 ```
 
-Open `http://127.0.0.1:7860`. “Live Hy3” is opt-in and requires `HY3_API_KEY`;
-the app never runs a live Judge. Optional audio controls remain disabled until
-a compatible local Qwen3-TTS environment is installed or an existing WAV pair
-is found.
+Open `http://127.0.0.1:7860`. The app never runs a live Judge. Audio rendering
+is shown for curated recorded examples only unless an existing WAV pair is
+found.
 
 ### Terminal demo
 

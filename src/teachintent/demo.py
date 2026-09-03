@@ -89,6 +89,11 @@ def _run_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
     return result.plan_doc, source
 
 
+def run_live_generation(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+    """Public wrapper for one live Hy3 generation through the existing pipeline."""
+    return _run_live(input_doc, prompt_version)
+
+
 def build_demo_payload(example: dict, *, mode: str) -> dict:
     """Build a stable, machine-readable public demo payload."""
     input_doc = example["input"]
@@ -194,7 +199,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         example = load_recorded_example(args.example, args.prompt_version)
         mode = "recorded"
         if args.live:
-            plan_doc, source = _run_live(example["input"], args.prompt_version)
+            plan_doc, source = run_live_generation(
+                example["input"], args.prompt_version
+            )
             example["speech_plan"] = plan_doc
             example["source"] = source
             mode = "live"
@@ -219,4 +226,5 @@ __all__ = [
     "load_recorded_example",
     "main",
     "render_demo",
+    "run_live_generation",
 ]
