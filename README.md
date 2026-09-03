@@ -235,18 +235,23 @@ boundaries are in [docs/FAILURE_ANALYSIS.md](docs/FAILURE_ANALYSIS.md).
 The single-page app has two modes:
 
 - `Explore examples` uses existing recorded artifacts and makes no API call.
+- `Explore examples` shows the recorded Speech Plan, recorded Evaluator v0.1
+  result, and optional curated Qwen3-TTS A/B audio.
 - `Try your own scenario` builds a validated TeachIntent input and calls Hy3
-  once through the existing live generation pipeline. It requires `HY3_API_KEY`
-  in local `.env`.
+  once through the existing live generation pipeline. After generation, the
+  user may explicitly run the independent Evaluator v0.1 Judge on that plan.
+  Live generation requires `HY3_API_KEY`; live evaluation requires
+  `OPENROUTER_API_KEY` in local `.env`.
 
 ```bash
 python -m pip install -e ".[demo]"
 python scripts/run_visual_demo.py
 ```
 
-Open `http://127.0.0.1:7860`. The app never runs a live Judge. Audio rendering
-is shown for curated recorded examples only unless an existing WAV pair is
-found.
+Open `http://127.0.0.1:7860`. The app never runs a live Judge for recorded
+examples. For custom scenarios, the live Judge runs only when the user clicks
+`Evaluate this plan`. Audio rendering is shown for curated recorded examples
+only unless an existing WAV pair is found.
 
 ### Terminal demo
 

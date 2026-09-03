@@ -10,7 +10,12 @@ from typing import Sequence
 
 from dotenv import load_dotenv
 
-from .generator import GeneratorError, Hy3Client, generate_speech_plan
+from .generator import (
+    GeneratorError,
+    Hy3Client,
+    SpeechPlanGenerationResult,
+    generate_speech_plan,
+)
 from .models import SpeechPlan, TeachIntentInput
 from .validators import iter_input_errors, iter_speech_plan_errors
 
@@ -69,15 +74,7 @@ def load_recorded_example(example_name: str, prompt_version: str) -> dict:
     }
 
 
-def _run_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
-    """Generate one plan through the real Hy3 pipeline."""
-    load_dotenv(REPO_ROOT / ".env")
-    client = Hy3Client.from_env()
-    result = generate_speech_plan(
-        input_doc,
-        client,
-        prompt_version=prompt_version,
-    )
+def _source_from_generation_result(result: SpeechPlanGenerationResult) -> dict:
     source = {
         "evidence_kind": "live_demo_not_research_evidence",
         "requested_model": result.requested_model,
@@ -86,6 +83,26 @@ def _run_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
         "temperature": 0,
         "duration_seconds": round(result.duration_seconds, 3),
     }
+    return source
+
+
+def run_live_generation_result(
+    input_doc: dict, prompt_version: str
+) -> SpeechPlanGenerationResult:
+    """Generate one plan through the real Hy3 pipeline and preserve raw_response."""
+    load_dotenv(REPO_ROOT / ".env")
+    client = Hy3Client.from_env()
+    return generate_speech_plan(
+        input_doc,
+        client,
+        prompt_version=prompt_version,
+    )
+
+
+def _run_live(input_doc: dict, prompt_version: str) -> tuple[dict, dict]:
+    """Generate one plan through the real Hy3 pipeline."""
+    result = run_live_generation_result(input_doc, prompt_version)
+    source = _source_from_generation_result(result)
     return result.plan_doc, source
 
 
@@ -227,4 +244,5 @@ __all__ = [
     "main",
     "render_demo",
     "run_live_generation",
+    "run_live_generation_result",
 ]
