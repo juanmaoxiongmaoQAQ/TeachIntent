@@ -6,7 +6,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import app_service
-from .web_models import ExampleSummary, HealthResponse, WorkbenchResponse
+from .web_models import (
+    EvaluateRequest,
+    ExampleSummary,
+    GenerateRequest,
+    HealthResponse,
+    LiveEvaluationResponse,
+    LiveGenerationResponse,
+    WorkbenchResponse,
+)
 
 
 def create_app() -> FastAPI:
@@ -18,7 +26,7 @@ def create_app() -> FastAPI:
             "http://localhost:5173",
         ],
         allow_credentials=False,
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
 
@@ -44,6 +52,37 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except app_service.AppServiceError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/api/generate", response_model=LiveGenerationResponse)
+    def generate(request: GenerateRequest) -> LiveGenerationResponse:
+        try:
+            return app_service.generate_live_workbench(request)
+        except app_service.LiveGenerationError as exc:
+            status_code = 400 if exc.failure_type == "input_validation_error" else 502
+            raise HTTPException(
+                status_code=status_code,
+                detail={
+                    "error": {
+                        "type": exc.failure_type,
+                        "message": exc.summary,
+                    }
+                },
+            ) from exc
+
+    @app.post("/api/evaluate", response_model=LiveEvaluationResponse)
+    def evaluate(request: EvaluateRequest) -> LiveEvaluationResponse:
+        try:
+            return app_service.evaluate_live_session(request.session_id)
+        except app_service.LiveSessionNotFound as exc:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": {
+                        "type": "unknown_session",
+                        "message": app_service.sanitize_error_summary(exc),
+                    }
+                },
+            ) from exc
 
     return app
 

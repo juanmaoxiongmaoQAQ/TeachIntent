@@ -237,6 +237,13 @@ and FastAPI. The Explore page is public-first: recorded Speech Plans and
 recorded Evaluator v0.1 evidence are served from committed demo artifacts, not
 from git-ignored `results/`.
 
+- `Explore` shows recorded examples, recorded Speech Plans, recorded Evaluator
+  v0.1 results, and synchronized evidence focus without live model calls.
+- `Live Studio` lets a user submit a teaching scenario, call Hy3 once, then
+  explicitly run the independent frozen Evaluator v0.1 Judge. Live generation
+  requires `HY3_API_KEY`; live evaluation requires `OPENROUTER_API_KEY` in
+  local `.env`.
+
 Terminal 1:
 
 ```bash

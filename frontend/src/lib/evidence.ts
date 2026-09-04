@@ -14,6 +14,7 @@ export interface EvidenceTarget {
   contextField?: ContextFieldKey;
   verbalSegmentIndex?: number;
   deliveryField?: DeliveryFieldKey;
+  evidenceValues?: Partial<Record<DeliveryFieldKey, string>>;
   label: string;
   resolved: boolean;
 }
@@ -102,6 +103,22 @@ export function resolveEvidenceTarget(evidence: EvidenceItem): EvidenceTarget {
       key: "delivery_plan.global.prosody.volume",
       label: "Speech Plan · Volume",
     },
+    "plan.delivery_plan.global.prosody.pitch_level": {
+      key: "delivery_plan.global.prosody.pitch_level",
+      label: "Speech Plan · Pitch level",
+    },
+    "speech_plan.delivery_plan.global.prosody.pitch_level": {
+      key: "delivery_plan.global.prosody.pitch_level",
+      label: "Speech Plan · Pitch level",
+    },
+    "plan.delivery_plan.global.prosody.pitch_range": {
+      key: "delivery_plan.global.prosody.pitch_range",
+      label: "Speech Plan · Pitch range",
+    },
+    "speech_plan.delivery_plan.global.prosody.pitch_range": {
+      key: "delivery_plan.global.prosody.pitch_range",
+      label: "Speech Plan · Pitch range",
+    },
   };
   const delivery = deliveryLabels[source];
   if (delivery) {
@@ -115,6 +132,88 @@ export function resolveEvidenceTarget(evidence: EvidenceItem): EvidenceTarget {
     };
   }
 
+  const segmentScalarMatch = source.match(
+    /^(plan|speech_plan)\.delivery_plan\.segment_overrides\[(\d+)\]\.(attitudinal_tone|emotion|contour_shape)$/,
+  );
+  if (segmentScalarMatch) {
+    const segmentIndex = Number(segmentScalarMatch[2]);
+    const fieldName = segmentScalarMatch[3];
+    const key =
+      `delivery_plan.segment_overrides[${segmentIndex}].${fieldName}` as DeliveryFieldKey;
+    return {
+      area: "speech",
+      source,
+      text,
+      deliveryField: key,
+      label: `Speech Plan · Segment control ${segmentIndex + 1} · ${labelForSegmentField(fieldName)}`,
+      resolved: true,
+    };
+  }
+
+  const segmentProsodyMatch = source.match(
+    /^(plan|speech_plan)\.delivery_plan\.segment_overrides\[(\d+)\]\.prosody\.(speaking_rate|pitch_level|pitch_range|volume)$/,
+  );
+  if (segmentProsodyMatch) {
+    const segmentIndex = Number(segmentProsodyMatch[2]);
+    const fieldName = segmentProsodyMatch[3];
+    const key =
+      `delivery_plan.segment_overrides[${segmentIndex}].prosody.${fieldName}` as DeliveryFieldKey;
+    return {
+      area: "speech",
+      source,
+      text,
+      deliveryField: key,
+      label: `Speech Plan · Segment control ${segmentIndex + 1} · ${labelForSegmentField(fieldName)}`,
+      resolved: true,
+    };
+  }
+
+  const prominenceMatch = source.match(
+    /^(plan|speech_plan)\.delivery_plan\.segment_overrides\[(\d+)\]\.prominence_targets\[(\d+)\](?:\.(text|level))?$/,
+  );
+  if (prominenceMatch) {
+    const segmentIndex = Number(prominenceMatch[2]);
+    const prominenceIndex = Number(prominenceMatch[3]);
+    const leaf = prominenceMatch[4];
+    const objectKey =
+      `delivery_plan.segment_overrides[${segmentIndex}].prominence_targets[${prominenceIndex}]` as DeliveryFieldKey;
+    const key = (leaf ? `${objectKey}.${leaf}` : objectKey) as DeliveryFieldKey;
+    return {
+      area: "speech",
+      source,
+      text,
+      deliveryField: key,
+      evidenceValues: leaf
+        ? undefined
+        : evidenceValuesFromJsonObject(text, objectKey, ["text", "level"]),
+      label: `Speech Plan · Segment control ${segmentIndex + 1} · Prominence target ${prominenceIndex + 1}`,
+      resolved: true,
+    };
+  }
+
+  const boundaryMatch = source.match(
+    /^(plan|speech_plan)\.delivery_plan\.segment_overrides\[(\d+)\]\.boundary_after(?:\.strength)?$/,
+  );
+  if (boundaryMatch) {
+    const segmentIndex = Number(boundaryMatch[2]);
+    const objectKey =
+      `delivery_plan.segment_overrides[${segmentIndex}].boundary_after` as DeliveryFieldKey;
+    const key = source.endsWith(".strength")
+      ? (`${objectKey}.strength` as DeliveryFieldKey)
+      : objectKey;
+    return {
+      area: "speech",
+      source,
+      text,
+      deliveryField: key,
+      evidenceValues: source.endsWith(".strength")
+        ? undefined
+        : evidenceValuesFromJsonObject(text, objectKey, ["strength"]),
+      label: `Speech Plan · Segment control ${segmentIndex + 1} · Boundary after`,
+      resolved: true,
+    };
+  }
+
   return {
     area: classifyEvidenceSource(source),
     source,
@@ -122,6 +221,41 @@ export function resolveEvidenceTarget(evidence: EvidenceItem): EvidenceTarget {
     label: "Unresolved grounded excerpt",
     resolved: false,
   };
+}
+
+function labelForSegmentField(fieldName: string): string {
+  const labels: Record<string, string> = {
+    attitudinal_tone: "Attitudinal tone",
+    emotion: "Emotion",
+    contour_shape: "Contour shape",
+    speaking_rate: "Speaking rate",
+    pitch_level: "Pitch level",
+    pitch_range: "Pitch range",
+    volume: "Volume",
+  };
+  return labels[fieldName] ?? fieldName;
+}
+
+function evidenceValuesFromJsonObject(
+  evidenceText: string,
+  objectKey: DeliveryFieldKey,
+  fields: string[],
+): Partial<Record<DeliveryFieldKey, string>> {
+  try {
+    const parsed = JSON.parse(evidenceText) as Record<string, unknown>;
+    return fields.reduce<Partial<Record<DeliveryFieldKey, string>>>(
+      (values, field) => {
+        const value = parsed[field];
+        if (typeof value === "string") {
+          values[`${objectKey}.${field}` as DeliveryFieldKey] = value;
+        }
+        return values;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
 }
 
 export function resolveJudgmentEvidence(
@@ -152,7 +286,15 @@ export function evidenceTextsForDeliveryField(
   targets: EvidenceTarget[],
   field: DeliveryFieldKey,
 ): string[] {
-  return targets
-    .filter((target) => target.deliveryField === field)
-    .map((target) => target.text);
+  const texts: string[] = [];
+  for (const target of targets) {
+    if (target.deliveryField === field) {
+      texts.push(target.text);
+    }
+    const value = target.evidenceValues?.[field];
+    if (value) {
+      texts.push(value);
+    }
+  }
+  return texts;
 }

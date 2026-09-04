@@ -98,4 +98,85 @@ describe("evidence routing", () => {
       ),
     ).toEqual([]);
   });
+
+  it("routes segment-level scalar delivery evidence", () => {
+    const target = resolveEvidenceTarget({
+      source: "plan.delivery_plan.segment_overrides[0].emotion",
+      text: "calm",
+    });
+
+    expect(target.resolved).toBe(true);
+    expect(target.deliveryField).toBe(
+      "delivery_plan.segment_overrides[0].emotion",
+    );
+    expect(target.label).toBe("Speech Plan · Segment control 1 · Emotion");
+  });
+
+  it("routes segment-level prosody evidence", () => {
+    const target = resolveEvidenceTarget({
+      source: "plan.delivery_plan.segment_overrides[2].prosody.pitch_range",
+      text: "narrow",
+    });
+
+    expect(target.resolved).toBe(true);
+    expect(
+      evidenceTextsForDeliveryField(
+        [target],
+        "delivery_plan.segment_overrides[2].prosody.pitch_range",
+      ),
+    ).toEqual(["narrow"]);
+  });
+
+  it("routes canonical JSON prominence evidence to exact child fields", () => {
+    const target = resolveEvidenceTarget({
+      source: "plan.delivery_plan.segment_overrides[0].prominence_targets[0]",
+      text: '{"level":"moderate","text":"方向在变化"}',
+    });
+
+    expect(target.resolved).toBe(true);
+    expect(target.deliveryField).toBe(
+      "delivery_plan.segment_overrides[0].prominence_targets[0]",
+    );
+    expect(
+      evidenceTextsForDeliveryField(
+        [target],
+        "delivery_plan.segment_overrides[0].prominence_targets[0].text",
+      ),
+    ).toEqual(["方向在变化"]);
+    expect(
+      evidenceTextsForDeliveryField(
+        [target],
+        "delivery_plan.segment_overrides[0].prominence_targets[0].level",
+      ),
+    ).toEqual(["moderate"]);
+  });
+
+  it("routes direct prominence child evidence", () => {
+    const target = resolveEvidenceTarget({
+      source: "plan.delivery_plan.segment_overrides[0].prominence_targets[1].text",
+      text: "方向在变化",
+    });
+
+    expect(
+      evidenceTextsForDeliveryField(
+        [target],
+        "delivery_plan.segment_overrides[0].prominence_targets[1].text",
+      ),
+    ).toEqual(["方向在变化"]);
+  });
+
+  it("routes boundary object evidence to strength", () => {
+    const target = resolveEvidenceTarget({
+      source: "plan.delivery_plan.segment_overrides[0].boundary_after",
+      text: '{"strength":"medium"}',
+    });
+
+    expect(target.resolved).toBe(true);
+    expect(
+      evidenceTextsForDeliveryField(
+        [target],
+        "delivery_plan.segment_overrides[0].boundary_after.strength",
+      ),
+    ).toEqual(["medium"]);
+  });
 });

@@ -91,7 +91,7 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("shows Explore technical details and Live Studio placeholder", async () => {
+  it("shows Explore technical details and Live Studio entry form", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -101,13 +101,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Live Studio" }));
 
-    expect(
-      screen.getByText(
-        "Generate and evaluate a Speech Plan from your own teaching scenario.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Coming in the next application stage."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Build a teaching scenario")).toBeInTheDocument();
+    expect(screen.getByText("Generate with Hy3")).toBeInTheDocument();
   });
 });

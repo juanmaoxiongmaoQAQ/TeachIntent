@@ -1,14 +1,11 @@
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { fetchExamples, fetchWorkbench } from "../api/teachintent";
 import { EmptyState } from "../components/common/EmptyState";
 import { Panel } from "../components/common/Panel";
 import { StatusBadge } from "../components/common/StatusBadge";
-import { TeachingContextPanel } from "../components/context/TeachingContextPanel";
-import { EvaluationPanel } from "../components/evaluation/EvaluationPanel";
-import { WorkbenchLayout } from "../components/layout/WorkbenchLayout";
-import { SpeechPlanPanel } from "../components/speech/SpeechPlanPanel";
+import { Workbench } from "../components/workbench/Workbench";
 import {
   Select,
   SelectContent,
@@ -16,24 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { resolveJudgmentEvidence } from "../lib/evidence";
 import type {
-  DimensionId,
   ExampleId,
   ExampleSummary,
   WorkbenchResponse,
 } from "../types/teachintent";
 
 const DEFAULT_EXAMPLE: ExampleId = "corrective-feedback";
-const DEFAULT_DIMENSION: DimensionId = "pedagogical_intent_fidelity";
 
 export function ExplorePage() {
   const [examples, setExamples] = useState<ExampleSummary[]>([]);
   const [selectedExample, setSelectedExample] =
     useState<ExampleId>(DEFAULT_EXAMPLE);
   const [workbench, setWorkbench] = useState<WorkbenchResponse | null>(null);
-  const [selectedDimension, setSelectedDimension] =
-    useState<DimensionId>(DEFAULT_DIMENSION);
   const [loadingExamples, setLoadingExamples] = useState(true);
   const [loadingWorkbench, setLoadingWorkbench] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +59,6 @@ export function ExplorePage() {
     let active = true;
     setLoadingWorkbench(true);
     setError(null);
-    setSelectedDimension(DEFAULT_DIMENSION);
     fetchWorkbench(selectedExample)
       .then((payload) => {
         if (active) {
@@ -89,12 +80,6 @@ export function ExplorePage() {
       active = false;
     };
   }, [selectedExample]);
-
-  const selectedJudgment = workbench?.evaluation.scores[selectedDimension];
-  const evidenceTargets = useMemo(
-    () => resolveJudgmentEvidence(selectedJudgment),
-    [selectedJudgment],
-  );
 
   const recommended = workbench?.example.recommended;
 
@@ -140,26 +125,11 @@ export function ExplorePage() {
 
       {!loadingWorkbench && workbench ? (
         <>
-          <WorkbenchLayout
-            context={
-              <TeachingContextPanel
-                input={workbench.input}
-                evidenceTargets={evidenceTargets}
-              />
-            }
-            speech={
-              <SpeechPlanPanel
-                speechPlan={workbench.speech_plan}
-                evidenceTargets={evidenceTargets}
-              />
-            }
-            evaluation={
-              <EvaluationPanel
-                evaluation={workbench.evaluation}
-                selectedDimension={selectedDimension}
-                onDimensionChange={setSelectedDimension}
-              />
-            }
+          <Workbench
+            mode="recorded"
+            input={workbench.input}
+            speechPlan={workbench.speech_plan}
+            evaluation={workbench.evaluation}
           />
           <Panel title="Voice Realization">
             <p className="text-sm text-slate-600">
