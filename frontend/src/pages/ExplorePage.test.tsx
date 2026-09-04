@@ -166,7 +166,7 @@ describe("ExplorePage", () => {
     render(<ExplorePage />);
 
     await waitFor(() =>
-      expect(screen.getByText("Recorded case.")).toBeInTheDocument(),
+      expect(screen.getByText(/Recorded case/)).toBeInTheDocument(),
     );
 
     expect(

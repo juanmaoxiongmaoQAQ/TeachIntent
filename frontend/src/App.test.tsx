@@ -106,12 +106,12 @@ describe("App", () => {
       expect(screen.getByText("Technical details")).toBeInTheDocument(),
     );
 
-    await user.click(screen.getByRole("button", { name: "Live Studio" }));
+    await user.click(screen.getByRole("button", { name: /Live Studio/ }));
 
     expect(screen.getByText("Build a teaching scenario")).toBeInTheDocument();
     expect(screen.getByText("Generate with Hy3")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Intent Compare" }));
+    await user.click(screen.getByRole("button", { name: /Intent Compare/ }));
 
     expect(screen.getByText("Build one teaching situation")).toBeInTheDocument();
     expect(screen.getByText("Compare intents")).toBeInTheDocument();

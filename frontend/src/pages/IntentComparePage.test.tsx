@@ -199,7 +199,7 @@ describe("IntentComparePage", () => {
     expect(screen.getByText("先拆成一个小问题。")).toBeInTheDocument();
     expect(screen.getByText("安抚但纠正")).toBeInTheDocument();
     expect(screen.getByText("小问题")).toBeInTheDocument();
-    expect(screen.getByText("Structural Contrast")).toBeInTheDocument();
+    expect(screen.getByText("Observed planning contrast")).toBeInTheDocument();
     expect(screen.getByText("delivery_plan.global.attitudinal_tone")).toBeInTheDocument();
     expect(screen.getByText("delivery_plan.segment_overrides[0].prominence_targets[0].text")).toBeInTheDocument();
     expect(screen.queryByText("Evaluate this plan")).not.toBeInTheDocument();

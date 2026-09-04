@@ -92,11 +92,12 @@ export function ExplorePage() {
               Demo case
             </p>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-              Explore recorded TeachIntent evidence
+              Explore TeachIntent
             </h2>
             {workbench ? (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                {workbench.example.description}
+                Inspect how teaching context and pedagogical intent become a
+                structured Speech Plan. {workbench.example.description}
               </p>
             ) : null}
           </div>

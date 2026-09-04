@@ -51,14 +51,45 @@ export function VoiceRealizationPanel({ voice }: VoiceRealizationPanelProps) {
           </p>
         </div>
         <DeliveryToVoiceTrace adapter={voice.delivery_adapter} />
-        {hasPlannedInstruction ? <InvariantCard voice={voice} /> : null}
         <VoiceComparisonPlayer
           neutral={voice.neutral}
           planned={voice.planned}
           plannedEnabled={hasPlannedInstruction}
         />
+        <MoreDetails
+          voice={voice}
+          showUnsupportedSummary={
+            voice.delivery_adapter.unsupported_controls.length === 0
+          }
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function MoreDetails({
+  voice,
+  showUnsupportedSummary,
+}: {
+  voice: VoiceRealizationResponse;
+  showUnsupportedSummary: boolean;
+}) {
+  return (
+    <details className="rounded-2xl border border-slate-200 bg-white p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-slate-950">
+        More details
+      </summary>
+      <div className="mt-4 space-y-4">
+        <InvariantCard />
+        {showUnsupportedSummary ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm text-slate-600">
+              No unsupported renderer controls are present in this case.
+            </p>
+          </div>
+        ) : null}
         {voice.limitations.length ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-semibold text-slate-950">Limitations</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-600">
               {voice.limitations.map((limitation) => (
@@ -67,12 +98,21 @@ export function VoiceRealizationPanel({ voice }: VoiceRealizationPanelProps) {
             </ul>
           </div>
         ) : null}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-sm font-semibold text-slate-950">
+            Renderer provenance
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            {voice.speaker} · {voice.model} · {voice.language} · seed{" "}
+            {voice.seed}
+          </p>
+        </div>
       </div>
-    </Panel>
+    </details>
   );
 }
 
-function InvariantCard({ voice }: { voice: VoiceRealizationResponse }) {
+function InvariantCard() {
   const invariants = [
     "Same exact words",
     "Same speaker",
@@ -82,7 +122,7 @@ function InvariantCard({ voice }: { voice: VoiceRealizationResponse }) {
     "Only condition difference: TTS instruct",
   ];
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
       <p className="text-sm font-semibold text-slate-950">A/B invariant</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {invariants.map((invariant) => (
@@ -94,9 +134,6 @@ function InvariantCard({ voice }: { voice: VoiceRealizationResponse }) {
           </div>
         ))}
       </div>
-      <p className="mt-3 text-xs leading-5 text-slate-500">
-        {voice.speaker} · {voice.model} · {voice.language} · seed {voice.seed}
-      </p>
     </div>
   );
 }

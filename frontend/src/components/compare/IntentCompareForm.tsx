@@ -50,8 +50,8 @@ export function IntentCompareForm({
         </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="space-y-3">
           <TextArea
             label="Content anchor"
             value={form.content_anchor}
@@ -70,7 +70,7 @@ export function IntentCompareForm({
             onChange={(value) => update("learner_utterance", value)}
           />
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           <TextInput
             label="Learner level"
             value={form.learner_level}
@@ -91,7 +91,7 @@ export function IntentCompareForm({
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[1fr_auto_1fr] lg:items-end">
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[1fr_auto_1fr] lg:items-end">
         <IntentSelect
           label="Intent A"
           value={form.left_intent}
@@ -210,7 +210,7 @@ function TextArea({
       </span>
       <textarea
         value={value}
-        rows={4}
+        rows={3}
         onChange={(event) => onChange(event.target.value)}
         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-950 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
       />

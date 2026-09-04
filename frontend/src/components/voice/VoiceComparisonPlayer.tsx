@@ -72,7 +72,7 @@ export function VoiceComparisonPlayer({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <VoiceConditionCard
           title="Default voice realization"
-          subtitle="TeachIntent selected no additional delivery control."
+          subtitle="No additional delivery control selected."
           condition={neutral}
           active={active === "neutral"}
           audioRef={neutralRef}
@@ -84,8 +84,8 @@ export function VoiceComparisonPlayer({
           onEnded={() => ended("neutral")}
         />
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-          TeachIntent selected no additional delivery control, so no A/B
-          delivery difference is claimed for this case.
+          No additional delivery control selected. The renderer therefore uses
+          its default instruction.
         </div>
       </div>
     );

@@ -12,8 +12,12 @@ export function CompareInvariantBar({ comparison }: CompareInvariantBarProps) {
         <StatusBadge tone="accent">Controlled input comparison</StatusBadge>
         <StatusBadge tone="muted">Input controlled</StatusBadge>
       </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <InvariantItem label="Only changed input field" value="Pedagogical intent" />
+      <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr_1fr]">
+        <InvariantItem
+          label="Only changed input field"
+          value="Pedagogical intent"
+          emphasized
+        />
         <InvariantItem label="Intent A" value={comparison.left_intent} />
         <InvariantItem label="Intent B" value={comparison.right_intent} />
       </div>
@@ -42,13 +46,33 @@ export function CompareInvariantBar({ comparison }: CompareInvariantBarProps) {
   );
 }
 
-function InvariantItem({ label, value }: { label: string; value: string }) {
+function InvariantItem({
+  label,
+  value,
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  emphasized?: boolean;
+}) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div
+      className={
+        emphasized
+          ? "rounded-xl border border-indigo-300 bg-white p-3 ring-2 ring-indigo-100"
+          : "rounded-xl border border-slate-200 bg-white p-3"
+      }
+    >
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
         {label}
       </p>
-      <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+      <p
+        className={
+          emphasized
+            ? "mt-1 text-base font-semibold text-slate-950"
+            : "mt-1 font-mono text-sm font-semibold text-slate-950"
+        }
+      >
         {value}
       </p>
     </div>

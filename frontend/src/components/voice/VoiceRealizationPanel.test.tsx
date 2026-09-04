@@ -115,7 +115,7 @@ describe("VoiceRealizationPanel", () => {
     expect(screen.getAllByText("Default voice realization").length).toBeGreaterThan(0);
     expect(
       screen.getByText(
-        "TeachIntent selected no additional delivery control, so no A/B delivery difference is claimed for this case.",
+        "No additional delivery control selected. The renderer therefore uses its default instruction.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Controlled comparison")).not.toBeInTheDocument();

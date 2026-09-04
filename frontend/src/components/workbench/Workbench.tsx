@@ -57,7 +57,7 @@ export function Workbench({
             ) : null}
             {generationMeta ? (
               <StatusBadge tone="muted">
-                Live application evaluation · Not part of frozen research results
+                Live application result · separate from frozen artifacts
               </StatusBadge>
             ) : null}
           </div>

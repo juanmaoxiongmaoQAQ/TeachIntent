@@ -127,6 +127,17 @@ export function LiveStudioPage() {
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
               Build a teaching scenario
             </h2>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                1 Build context
+              </span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                2 Generate Speech Plan
+              </span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                3 Evaluate plan
+              </span>
+            </div>
           </div>
           <StatusBadge tone="muted">Hy3 generation · user-triggered Judge</StatusBadge>
         </div>

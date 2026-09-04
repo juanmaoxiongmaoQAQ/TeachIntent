@@ -44,33 +44,30 @@ export function TeachingContextPanel({
             "pedagogical_context.learner_utterance",
           )}
         />
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             Learner profile
           </p>
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-            <ContextField
+          <div className="grid gap-2">
+            <ProfileRow
               label="Level"
               value={input.learner.level}
-              compact
               evidenceTexts={evidenceTextsForContextField(
                 evidenceTargets,
                 "learner.level",
               )}
             />
-            <ContextField
-              label="Knowledge state"
+            <ProfileRow
+              label="Knowledge"
               value={input.learner.knowledge_state}
-              compact
               evidenceTexts={evidenceTextsForContextField(
                 evidenceTargets,
                 "learner.knowledge_state",
               )}
             />
-            <ContextField
-              label="Affective state"
+            <ProfileRow
+              label="Affect"
               value={input.learner.affective_state}
-              compact
               evidenceTexts={evidenceTextsForContextField(
                 evidenceTargets,
                 "learner.affective_state",
@@ -90,5 +87,24 @@ export function TeachingContextPanel({
         )}
       </div>
     </Panel>
+  );
+}
+
+function ProfileRow({
+  label,
+  value,
+  evidenceTexts,
+}: {
+  label: string;
+  value: string | undefined;
+  evidenceTexts: string[];
+}) {
+  return (
+    <ContextField
+      label={label}
+      value={value}
+      compact
+      evidenceTexts={evidenceTexts}
+    />
   );
 }

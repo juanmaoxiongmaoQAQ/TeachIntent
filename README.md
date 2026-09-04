@@ -4,11 +4,13 @@
 > project built with Hy3. It is not an official Tencent product, project, or
 > release, and its findings do not represent Tencent.
 
-TeachIntent is a runnable AI-tutor component for **Pedagogical Intent Driven
-Speech Planning**. Given what should be taught, the instructional situation,
-the learner state, and a teacher-selected pedagogical intent, Hy3 produces a
-validated, machine-actionable **Speech Plan**: what the tutor should say and
-how it should be delivered.
+TeachIntent is a pedagogical speech planning layer for AI Tutors. Given
+teaching content, teaching context, learner state, and a teacher-selected
+pedagogical intent, Hy3 produces a validated, machine-actionable **Speech
+Plan**:
+
+- **WHAT TO SAY**: ordered tutor wording;
+- **HOW TO SAY**: optional delivery controls for tone, emotion, and prosody.
 
 TeachIntent addresses a real AI-tutoring problem. A generic answer generator
 can produce factually plausible text while performing the wrong teaching move,
@@ -45,8 +47,59 @@ python scripts/run_demo.py \
 ```
 
 The demo also supports `elicitation`, `scaffolding`, and `supportive-feedback`
-examples and explicit `v0.1` / `v0.2` prompt selection. See [Demo](#demo) for
-the optional visual and audio layers.
+examples and explicit `v0.1` / `v0.2` prompt selection. See [Quick Demo](#quick-demo)
+for the product-facing web walkthrough.
+
+## Quick Demo
+
+Start the local web app:
+
+```bash
+.venv/bin/python scripts/run_web_api.py \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+1. **Explore** requires no API credential. It shows recorded Speech Plans,
+   evaluator evidence, and curated voice A/B playback from committed public
+   artifacts.
+2. **Live Studio** requires `HY3_API_KEY` for generation and
+   `OPENROUTER_API_KEY` only if the user clicks independent evaluation.
+3. **Intent Compare** requires `HY3_API_KEY`. It changes only the selected
+   pedagogical intent and runs two user-triggered Hy3 generations; it does not
+   call the Judge or TTS.
+
+## Why TeachIntent
+
+Without TeachIntent:
+
+```text
+Teaching context -> unconstrained tutor response
+```
+
+With TeachIntent:
+
+```text
+Teaching context + explicit pedagogical intent
+  -> structured Speech Plan
+  -> auditable evaluation
+  -> optional voice realization
+```
+
+Hy3 is the generator, an independent Qwen Judge is the evaluator, and
+Qwen3-TTS is an optional downstream renderer for curated examples. TeachIntent
+does not claim to be a new foundation model, a new TTS architecture, or proof
+of causal pedagogical improvement.
 
 ## User Scenario and Problem Definition
 
@@ -270,6 +323,18 @@ npm run dev
 Open `http://127.0.0.1:5173`.
 
 The Gradio demo remains available as a legacy research/demo interface.
+
+### Recommended 2-minute walkthrough
+
+1. Open `Explore` on `corrective-feedback`: show **WHAT TO SAY** /
+   **HOW TO SAY**, click D6 or D2 to show synchronized evidence, then play
+   Neutral and TeachIntent voice realization.
+2. Open `Intent Compare`: load the showcase scenario, keep
+   `corrective_feedback` vs `scaffolding`, and show how the same context leads
+   to different Speech Plans.
+3. Open `Live Studio`: show that custom generation and optional independent
+   evaluation exist, but avoid waiting on live APIs during a two-minute
+   recording.
 
 ### Legacy Gradio visual demo
 

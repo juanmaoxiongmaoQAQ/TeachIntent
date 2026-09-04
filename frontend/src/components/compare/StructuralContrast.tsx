@@ -7,7 +7,7 @@ interface StructuralContrastProps {
 
 export function StructuralContrast({ contrast }: StructuralContrastProps) {
   return (
-    <Panel title="Structural Contrast">
+    <Panel title="Observed planning contrast">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Verbal segments"

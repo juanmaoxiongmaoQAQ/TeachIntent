@@ -54,15 +54,17 @@ export function EvidenceTracePanel({
   const targets = resolveJudgmentEvidence(judgment);
   const unresolved = unresolvedTargets(targets);
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
           Evidence Trace
         </p>
-        <h3 className="mt-1 text-sm font-semibold text-slate-950">
+        <h3 className="mt-1 text-[13px] font-semibold text-slate-950">
           {dimension.key} {dimension.label}
         </h3>
-        <p className="mt-1 text-sm text-slate-700">Score {judgment.score} / 4</p>
+        <p className="mt-1 text-sm font-semibold text-slate-800">
+          Score {judgment.score} / 4
+        </p>
       </div>
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -99,7 +101,7 @@ export function EvidenceTracePanel({
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
           Judge rationale
         </p>
-        <p className="text-sm leading-6 text-slate-800">
+        <p className="max-w-prose text-sm leading-6 text-slate-800">
           {judgment.brief_justification}
         </p>
       </div>
