@@ -1,0 +1,58 @@
+{
+  "ab_invariants": {
+    "neutral_instruct_is_empty": true,
+    "only_condition_difference": "instruct",
+    "planned_instruct_comes_only_from_delivery_plan": true,
+    "same_exact_verbal_text": true,
+    "same_language": true,
+    "same_model": true,
+    "same_seed_and_generation_path": true,
+    "same_speaker": true,
+    "same_text_sha256": "46ba5c0825ca31b28dafd5ebee7494c420d7f5f09ab57d5e9cea5820d528d12e"
+  },
+  "artifact_version": "1.0",
+  "conditions": {
+    "neutral": {
+      "audio_file": "neutral.wav",
+      "audio_sha256": "f69658a52f61945fc1ccfd0db364df2203332577eddc232e0549a554a00ad5b3",
+      "duration_seconds": 15.84,
+      "instruct": ""
+    },
+    "planned": {
+      "audio_file": "planned.wav",
+      "audio_sha256": "5c83908aa8845582638bf7d78876fa1246cd7d943ce6a04e8c1174af1c143ac2",
+      "duration_seconds": 13.44,
+      "instruct": "整体采用“安抚但纠正”的态度语气。"
+    }
+  },
+  "delivery_adapter": {
+    "instruct": "整体采用“安抚但纠正”的态度语气。",
+    "supported_controls": [
+      {
+        "instruction_fragment": "整体采用“安抚但纠正”的态度语气。",
+        "path": "delivery_plan.global.attitudinal_tone",
+        "realization": "best_effort_natural_language_instruction",
+        "value": "安抚但纠正"
+      }
+    ],
+    "unsupported_controls": []
+  },
+  "exact_verbal_text": "你提到速度大小没变，这观察本身没错；但加速度描述的是速度大小或方向的变化，汽车转弯时方向改变了，所以加速度并不为0。",
+  "exact_verbal_text_sha256": "46ba5c0825ca31b28dafd5ebee7494c420d7f5f09ab57d5e9cea5820d528d12e",
+  "example_name": "corrective-feedback",
+  "language": "Chinese",
+  "limitations": [
+    "Qwen3-TTS instruction realization is best-effort, not deterministic acoustic control.",
+    "No exact F0, timing, loudness, prominence-strength, or contour realization is claimed.",
+    "Unsupported controls remain preserved in the source Speech Plan and are listed by the adapter."
+  ],
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+  "model_provenance": {
+    "normalized_model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_basename": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_reference_type": "local_checkpoint"
+  },
+  "prompt_version": "v0.2",
+  "seed": 20260901,
+  "speaker": "Vivian"
+}

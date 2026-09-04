@@ -1,0 +1,58 @@
+{
+  "ab_invariants": {
+    "neutral_instruct_is_empty": true,
+    "only_condition_difference": "instruct",
+    "planned_instruct_comes_only_from_delivery_plan": true,
+    "same_exact_verbal_text": true,
+    "same_language": true,
+    "same_model": true,
+    "same_seed_and_generation_path": true,
+    "same_speaker": true,
+    "same_text_sha256": "5d3b53c6d1636c136dca77fda0a515fa851898af5c203db746eb62df55348277"
+  },
+  "artifact_version": "1.0",
+  "conditions": {
+    "neutral": {
+      "audio_file": "neutral.wav",
+      "audio_sha256": "38edb2667230d0abc619ee4cb625d06f2551c5609a295cb74c680091b4d78c4b",
+      "duration_seconds": 22.4,
+      "instruct": ""
+    },
+    "planned": {
+      "audio_file": "planned.wav",
+      "audio_sha256": "9ae4e7e9d9b4d787db0a1cf01a6664696245e005ab95e3e9d876297251389b55",
+      "duration_seconds": 20.24,
+      "instruct": "整体采用“温和而坚定，不包办代替”的态度语气。"
+    }
+  },
+  "delivery_adapter": {
+    "instruct": "整体采用“温和而坚定，不包办代替”的态度语气。",
+    "supported_controls": [
+      {
+        "instruction_fragment": "整体采用“温和而坚定，不包办代替”的态度语气。",
+        "path": "delivery_plan.global.attitudinal_tone",
+        "realization": "best_effort_natural_language_instruction",
+        "value": "温和而坚定，不包办代替"
+      }
+    ],
+    "unsupported_controls": []
+  },
+  "exact_verbal_text": "我知道你现在因为填错表格很烦躁，不想再试；但我不会直接写出所有组合和比例。我们先退一步，只做最基础的一步：分别列出Tt亲本和tt亲本各自可能产生哪些配子？你写完后，我们再往下走。",
+  "exact_verbal_text_sha256": "5d3b53c6d1636c136dca77fda0a515fa851898af5c203db746eb62df55348277",
+  "example_name": "scaffolding",
+  "language": "Chinese",
+  "limitations": [
+    "Qwen3-TTS instruction realization is best-effort, not deterministic acoustic control.",
+    "No exact F0, timing, loudness, prominence-strength, or contour realization is claimed.",
+    "Unsupported controls remain preserved in the source Speech Plan and are listed by the adapter."
+  ],
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+  "model_provenance": {
+    "normalized_model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_basename": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_reference_type": "local_checkpoint"
+  },
+  "prompt_version": "v0.2",
+  "seed": 20260901,
+  "speaker": "Vivian"
+}

@@ -1,0 +1,51 @@
+{
+  "ab_invariants": {
+    "neutral_instruct_is_empty": true,
+    "only_condition_difference": "instruct",
+    "planned_instruct_comes_only_from_delivery_plan": true,
+    "same_exact_verbal_text": true,
+    "same_language": true,
+    "same_model": true,
+    "same_seed_and_generation_path": true,
+    "same_speaker": true,
+    "same_text_sha256": "507ddf737b2d9a3d2f4d93d84fb8dc7d6436bfd4fc529a771c6891007d597a2e"
+  },
+  "artifact_version": "1.0",
+  "conditions": {
+    "neutral": {
+      "audio_file": "neutral.wav",
+      "audio_sha256": "80c1c76e83e00f3a3cd49b8c330cd5cf4a5837f7b9d1baeacdc8d9e8a1038776",
+      "duration_seconds": 20.64,
+      "instruct": ""
+    },
+    "planned": {
+      "audio_file": "planned.wav",
+      "audio_sha256": "80c1c76e83e00f3a3cd49b8c330cd5cf4a5837f7b9d1baeacdc8d9e8a1038776",
+      "duration_seconds": 20.64,
+      "instruct": ""
+    }
+  },
+  "delivery_adapter": {
+    "instruct": "",
+    "supported_controls": [],
+    "unsupported_controls": []
+  },
+  "exact_verbal_text": "你刚才像读地理图那样先确认横轴、纵轴，再看曲线，并正确判断出这种物质的浓度在下降，这个跨学科迁移做得很好。其实先确认坐标轴再描述趋势的顺序正适用于不同学科的折线图，所以你的用法完全合理。",
+  "exact_verbal_text_sha256": "507ddf737b2d9a3d2f4d93d84fb8dc7d6436bfd4fc529a771c6891007d597a2e",
+  "example_name": "supportive-feedback",
+  "language": "Chinese",
+  "limitations": [
+    "Qwen3-TTS instruction realization is best-effort, not deterministic acoustic control.",
+    "No exact F0, timing, loudness, prominence-strength, or contour realization is claimed.",
+    "Unsupported controls remain preserved in the source Speech Plan and are listed by the adapter."
+  ],
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+  "model_provenance": {
+    "normalized_model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_basename": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "source_reference_type": "local_checkpoint"
+  },
+  "prompt_version": "v0.2",
+  "seed": 20260901,
+  "speaker": "Vivian"
+}
