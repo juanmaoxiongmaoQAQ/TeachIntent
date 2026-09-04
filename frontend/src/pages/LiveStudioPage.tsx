@@ -227,9 +227,15 @@ export function LiveStudioPage() {
             onEvaluate={handleEvaluate}
           />
           <Panel title="Voice Realization">
-            <p className="text-sm text-slate-600">
-              Voice realization is available for curated Explore cases only.
+            <p className="text-sm leading-6 text-slate-600">
+              Curated voice realization is available in Explore only.
             </p>
+            {Object.keys(generation.speech_plan.delivery_plan).length > 0 ? (
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Current live plan contains delivery controls, but no live TTS
+                call is made in this application mode.
+              </p>
+            ) : null}
           </Panel>
           <TechnicalDetails generation={generation} evaluation={evaluation} />
         </>

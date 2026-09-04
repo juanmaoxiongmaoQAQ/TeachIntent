@@ -50,6 +50,13 @@ const showcase: WorkbenchResponse = {
     scores: {},
     critical_flags: [],
   },
+  voice_realization: {
+    available: false,
+    mode: "recorded",
+    reason: "Recorded voice artifact unavailable.",
+    ab_invariants: {},
+    limitations: [],
+  },
 };
 
 const generated: LiveGenerationResponse = {

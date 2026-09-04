@@ -56,6 +56,13 @@ const minimalWorkbench: WorkbenchResponse = {
       },
     },
   },
+  voice_realization: {
+    available: false,
+    mode: "recorded",
+    reason: "Recorded voice artifact unavailable.",
+    ab_invariants: {},
+    limitations: [],
+  },
 };
 
 beforeEach(() => {

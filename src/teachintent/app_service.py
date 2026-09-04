@@ -29,6 +29,7 @@ from .models import TeachIntentInput
 from .validators import iter_input_errors
 from .web_models import (
     CriticalFlag,
+    DeliveryAdapterInfo,
     DimensionEvaluation,
     EvaluationResponse,
     EvidenceItem,
@@ -37,6 +38,8 @@ from .web_models import (
     GenerationMetadata,
     LiveEvaluationResponse,
     LiveGenerationResponse,
+    VoiceCondition,
+    VoiceRealizationResponse,
     WorkbenchResponse,
 )
 
@@ -45,8 +48,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR = (
     REPO_ROOT / "public_demo" / "evaluator_artifacts"
 )
+PUBLIC_DEMO_VOICE_DIR = REPO_ROOT / "public_demo" / "voice"
 PUBLIC_DEMO_ARTIFACT_VERSION = "public-demo-evaluator-artifact-v1"
+PUBLIC_VOICE_ARTIFACT_VERSION = "1.0"
 DEFAULT_PROMPT_VERSION = "v0.2"
+DEFAULT_PROMPT_DIR = "v0_2"
 RECOMMENDED_EXAMPLE = "corrective-feedback"
 EXPLORE_EXAMPLES = (
     "corrective-feedback",
@@ -91,6 +97,10 @@ class LiveGenerationError(AppServiceError):
         super().__init__(summary)
         self.failure_type = failure_type
         self.summary = summary
+
+
+class VoiceArtifactUnavailable(AppServiceError):
+    """Raised when a requested public voice asset cannot be served."""
 
 
 @dataclass
@@ -149,6 +159,28 @@ def _public_artifact_path(example_name: str, prompt_version: str) -> Path:
     )
 
 
+def _public_voice_manifest_path(example_name: str, prompt_version: str) -> Path:
+    return (
+        PUBLIC_DEMO_VOICE_DIR
+        / example_name
+        / prompt_version.replace(".", "_")
+        / "manifest.json"
+    )
+
+
+def _public_voice_audio_path(
+    example_name: str,
+    prompt_version: str,
+    condition: str,
+) -> Path:
+    return (
+        PUBLIC_DEMO_VOICE_DIR
+        / example_name
+        / prompt_version.replace(".", "_")
+        / f"{condition}.wav"
+    )
+
+
 def _load_public_evaluator_artifact(
     example_name: str,
     prompt_version: str,
@@ -167,6 +199,26 @@ def _load_public_evaluator_artifact(
     if artifact.get("prompt_version") != prompt_version:
         return None
     return artifact
+
+
+def _load_public_voice_manifest(
+    example_name: str,
+    prompt_version: str,
+) -> dict[str, Any] | None:
+    path = _public_voice_manifest_path(example_name, prompt_version)
+    if not path.is_file() or path.is_symlink():
+        return None
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if manifest.get("artifact_version") != PUBLIC_VOICE_ARTIFACT_VERSION:
+        return None
+    if manifest.get("example_name") != example_name:
+        return None
+    if manifest.get("prompt_version") != prompt_version:
+        return None
+    return manifest
 
 
 def _example_summary(example_name: str, example: dict[str, Any]) -> ExampleSummary:
@@ -221,6 +273,87 @@ def _critical_flags(flags: Any) -> list[CriticalFlag]:
             )
         )
     return public_flags
+
+
+def _voice_unavailable(reason: str = "Recorded voice artifact unavailable.") -> VoiceRealizationResponse:
+    return VoiceRealizationResponse(available=False, reason=reason)
+
+
+def _voice_condition_response(
+    *,
+    example_name: str,
+    condition_name: str,
+    condition: dict[str, Any],
+) -> VoiceCondition | None:
+    audio_file = condition.get("audio_file")
+    if audio_file != f"{condition_name}.wav":
+        return None
+    audio_path = _public_voice_audio_path(
+        example_name,
+        DEFAULT_PROMPT_VERSION,
+        condition_name,
+    )
+    if not audio_path.is_file() or audio_path.is_symlink():
+        return None
+    return VoiceCondition(
+        instruct=str(condition.get("instruct", "")),
+        audio_file=audio_file,
+        audio_url=f"/api/audio/{example_name}/{condition_name}",
+        audio_sha256=str(condition.get("audio_sha256", "")),
+        duration_seconds=float(condition.get("duration_seconds", 0.0)),
+    )
+
+
+def _voice_manifest_to_response(
+    example_name: str,
+    manifest: dict[str, Any] | None,
+) -> VoiceRealizationResponse:
+    if manifest is None:
+        return _voice_unavailable()
+    conditions = manifest.get("conditions")
+    adapter = manifest.get("delivery_adapter")
+    if not isinstance(conditions, dict) or not isinstance(adapter, dict):
+        return _voice_unavailable()
+    neutral_obj = conditions.get("neutral")
+    planned_obj = conditions.get("planned")
+    if not isinstance(neutral_obj, dict) or not isinstance(planned_obj, dict):
+        return _voice_unavailable()
+    neutral = _voice_condition_response(
+        example_name=example_name,
+        condition_name="neutral",
+        condition=neutral_obj,
+    )
+    planned = _voice_condition_response(
+        example_name=example_name,
+        condition_name="planned",
+        condition=planned_obj,
+    )
+    if neutral is None or planned is None:
+        return _voice_unavailable()
+    try:
+        delivery_adapter = DeliveryAdapterInfo.model_validate(adapter)
+    except ValidationError:
+        return _voice_unavailable()
+    return VoiceRealizationResponse(
+        available=True,
+        exact_verbal_text=str(manifest.get("exact_verbal_text", "")),
+        exact_verbal_text_sha256=str(manifest.get("exact_verbal_text_sha256", "")),
+        speaker=str(manifest.get("speaker", "")),
+        model=str(manifest.get("model", "")),
+        language=str(manifest.get("language", "")),
+        seed=int(manifest["seed"]) if manifest.get("seed") is not None else None,
+        delivery_adapter=delivery_adapter,
+        ab_invariants=manifest.get("ab_invariants")
+        if isinstance(manifest.get("ab_invariants"), dict)
+        else {},
+        neutral=neutral,
+        planned=planned,
+        limitations=[
+            str(item)
+            for item in manifest.get("limitations", [])
+            if isinstance(item, str)
+        ],
+    )
 
 
 def _artifact_to_evaluation_response(
@@ -303,6 +436,41 @@ def get_recorded_evaluation(
     return _artifact_to_evaluation_response(artifact)
 
 
+def get_voice_realization(
+    example_name: str,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> VoiceRealizationResponse:
+    """Load portable recorded voice realization from public_demo only."""
+    if example_name not in EXPLORE_EXAMPLES:
+        raise ExampleNotFound(f"Unknown example: {example_name}")
+    if prompt_version != DEFAULT_PROMPT_VERSION:
+        return _voice_unavailable("Recorded voice artifact unavailable.")
+    manifest = _load_public_voice_manifest(example_name, prompt_version)
+    return _voice_manifest_to_response(example_name, manifest)
+
+
+def resolve_public_voice_audio_path(
+    example_name: str,
+    condition: str,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> Path:
+    """Resolve a public WAV path without permitting arbitrary filesystem reads."""
+    if example_name not in EXPLORE_EXAMPLES:
+        raise ExampleNotFound(f"Unknown example: {example_name}")
+    if condition not in ("neutral", "planned"):
+        raise VoiceArtifactUnavailable(f"Unknown voice condition: {condition}")
+    path = _public_voice_audio_path(example_name, prompt_version, condition)
+    root = PUBLIC_DEMO_VOICE_DIR.resolve()
+    resolved = path.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise VoiceArtifactUnavailable("Voice artifact path is invalid.") from exc
+    if not path.is_file() or path.is_symlink():
+        raise VoiceArtifactUnavailable("Recorded voice artifact unavailable.")
+    return path
+
+
 def build_recorded_workbench(
     example_name: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
@@ -316,6 +484,7 @@ def build_recorded_workbench(
         input=example["input"],
         speech_plan=example["speech_plan"],
         evaluation=evaluation,
+        voice_realization=get_voice_realization(example_name, prompt_version),
     )
 
 
@@ -553,12 +722,15 @@ __all__ = [
     "ExampleNotFound",
     "PUBLIC_DEMO_ARTIFACT_VERSION",
     "PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR",
+    "PUBLIC_DEMO_VOICE_DIR",
+    "PUBLIC_VOICE_ARTIFACT_VERSION",
     "RECOMMENDED_EXAMPLE",
     "LIVE_SESSION_STORE",
     "LiveGenerationError",
     "LiveSession",
     "LiveSessionNotFound",
     "LiveSessionStore",
+    "VoiceArtifactUnavailable",
     "build_recorded_workbench",
     "build_live_input_doc",
     "classify_evidence_source",
@@ -567,7 +739,9 @@ __all__ = [
     "generate_live_workbench",
     "get_example",
     "get_recorded_evaluation",
+    "get_voice_realization",
     "list_examples",
+    "resolve_public_voice_audio_path",
     "sanitize_error_summary",
     "validate_live_input_doc",
 ]

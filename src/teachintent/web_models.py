@@ -36,6 +36,50 @@ class EvaluationResponse(BaseModel):
     failure_summary: str | None = None
 
 
+class SupportedControl(BaseModel):
+    path: str
+    value: Any
+    instruction_fragment: str
+    realization: str
+
+
+class UnsupportedControl(BaseModel):
+    path: str
+    value: Any
+    reason: str
+
+
+class DeliveryAdapterInfo(BaseModel):
+    instruct: str
+    supported_controls: list[SupportedControl] = Field(default_factory=list)
+    unsupported_controls: list[UnsupportedControl] = Field(default_factory=list)
+
+
+class VoiceCondition(BaseModel):
+    instruct: str
+    audio_file: str
+    audio_url: str
+    audio_sha256: str
+    duration_seconds: float
+
+
+class VoiceRealizationResponse(BaseModel):
+    available: bool
+    mode: Literal["recorded"] = "recorded"
+    reason: str | None = None
+    exact_verbal_text: str | None = None
+    exact_verbal_text_sha256: str | None = None
+    speaker: str | None = None
+    model: str | None = None
+    language: str | None = None
+    seed: int | None = None
+    delivery_adapter: DeliveryAdapterInfo | None = None
+    ab_invariants: dict[str, Any] = Field(default_factory=dict)
+    neutral: VoiceCondition | None = None
+    planned: VoiceCondition | None = None
+    limitations: list[str] = Field(default_factory=list)
+
+
 class ExampleSummary(BaseModel):
     id: str
     title: str
@@ -51,6 +95,7 @@ class WorkbenchResponse(BaseModel):
     input: dict[str, Any]
     speech_plan: dict[str, Any]
     evaluation: EvaluationResponse
+    voice_realization: VoiceRealizationResponse
 
 
 class HealthResponse(BaseModel):

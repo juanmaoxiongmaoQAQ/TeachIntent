@@ -163,12 +163,57 @@ export interface EvaluationArtifact {
   failure_summary?: string | null;
 }
 
+export interface SupportedControl {
+  path: string;
+  value: unknown;
+  instruction_fragment: string;
+  realization: string;
+}
+
+export interface UnsupportedControl {
+  path: string;
+  value: unknown;
+  reason: string;
+}
+
+export interface DeliveryAdapterInfo {
+  instruct: string;
+  supported_controls: SupportedControl[];
+  unsupported_controls: UnsupportedControl[];
+}
+
+export interface VoiceCondition {
+  instruct: string;
+  audio_file: string;
+  audio_url: string;
+  audio_sha256: string;
+  duration_seconds: number;
+}
+
+export interface VoiceRealizationResponse {
+  available: boolean;
+  mode: "recorded";
+  reason?: string | null;
+  exact_verbal_text?: string | null;
+  exact_verbal_text_sha256?: string | null;
+  speaker?: string | null;
+  model?: string | null;
+  language?: string | null;
+  seed?: number | null;
+  delivery_adapter?: DeliveryAdapterInfo | null;
+  ab_invariants: Record<string, unknown>;
+  neutral?: VoiceCondition | null;
+  planned?: VoiceCondition | null;
+  limitations: string[];
+}
+
 export interface WorkbenchResponse {
   example: ExampleSummary;
   prompt_version: string;
   input: TeachIntentInput;
   speech_plan: SpeechPlan;
   evaluation: EvaluationArtifact;
+  voice_realization: VoiceRealizationResponse;
 }
 
 export interface GenerateRequest {

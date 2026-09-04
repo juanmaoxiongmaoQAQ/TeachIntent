@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from . import app_service
 from .web_models import (
@@ -83,6 +86,22 @@ def create_app() -> FastAPI:
                     }
                 },
             ) from exc
+
+    @app.get("/api/audio/{example_name}/{condition}")
+    def audio(
+        example_name: str,
+        condition: Literal["neutral", "planned"],
+    ) -> FileResponse:
+        try:
+            path = app_service.resolve_public_voice_audio_path(
+                example_name,
+                condition,
+            )
+        except app_service.ExampleNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except app_service.VoiceArtifactUnavailable as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return FileResponse(path, media_type="audio/wav", filename=path.name)
 
     return app
 

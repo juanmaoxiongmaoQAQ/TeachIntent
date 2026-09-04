@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 
 import { fetchExamples, fetchWorkbench } from "../api/teachintent";
 import { EmptyState } from "../components/common/EmptyState";
-import { Panel } from "../components/common/Panel";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { Workbench } from "../components/workbench/Workbench";
+import { VoiceRealizationPanel } from "../components/voice/VoiceRealizationPanel";
 import {
   Select,
   SelectContent,
@@ -131,11 +131,7 @@ export function ExplorePage() {
             speechPlan={workbench.speech_plan}
             evaluation={workbench.evaluation}
           />
-          <Panel title="Voice Realization">
-            <p className="text-sm text-slate-600">
-              Recorded A/B audio assets are not bundled in the F0 web client yet.
-            </p>
-          </Panel>
+          <VoiceRealizationPanel voice={workbench.voice_realization} />
           <TechnicalDetails workbench={workbench} />
         </>
       ) : null}
@@ -202,6 +198,11 @@ function TechnicalDetails({ workbench }: { workbench: WorkbenchResponse }) {
     evaluator_version: workbench.evaluation.evaluator_version,
     judge_prompt_version: workbench.evaluation.judge_prompt_version,
     source_run_id: workbench.evaluation.source_run_id,
+    voice_mode: workbench.voice_realization.mode,
+    voice_available: workbench.voice_realization.available,
+    voice_speaker: workbench.voice_realization.speaker,
+    voice_model: workbench.voice_realization.model,
+    voice_seed: workbench.voice_realization.seed,
   };
   return (
     <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

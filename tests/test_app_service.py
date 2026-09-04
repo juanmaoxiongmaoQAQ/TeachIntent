@@ -41,6 +41,70 @@ VALID_PLAN = {
     },
 }
 
+VOICE_MANIFEST = {
+    "artifact_version": "1.0",
+    "example_name": "corrective-feedback",
+    "prompt_version": "v0.2",
+    "exact_verbal_text": "先确认速度是否包含方向变化。",
+    "exact_verbal_text_sha256": "text-sha",
+    "language": "Chinese",
+    "speaker": "Vivian",
+    "model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "seed": 20260901,
+    "delivery_adapter": {
+        "instruct": "整体采用“安抚但纠正”的态度语气。",
+        "supported_controls": [
+            {
+                "path": "delivery_plan.global.attitudinal_tone",
+                "value": "安抚但纠正",
+                "instruction_fragment": "整体采用“安抚但纠正”的态度语气。",
+                "realization": "best_effort_natural_language_instruction",
+            }
+        ],
+        "unsupported_controls": [
+            {
+                "path": "delivery_plan.segment_overrides[0].prominence_targets",
+                "value": [{"text": "方向在变化", "level": "moderate"}],
+                "reason": "Not realized by current adapter.",
+            }
+        ],
+    },
+    "ab_invariants": {"same_exact_verbal_text": True},
+    "conditions": {
+        "neutral": {
+            "instruct": "",
+            "audio_file": "neutral.wav",
+            "audio_sha256": "neutral-sha",
+            "duration_seconds": 1.0,
+        },
+        "planned": {
+            "instruct": "整体采用“安抚但纠正”的态度语气。",
+            "audio_file": "planned.wav",
+            "audio_sha256": "planned-sha",
+            "duration_seconds": 1.2,
+        },
+    },
+    "limitations": ["No exact acoustic control is claimed."],
+}
+
+
+def _write_public_voice_fixture(
+    root: Path,
+    example_name: str = "corrective-feedback",
+    manifest_overrides: dict | None = None,
+) -> None:
+    artifact_dir = root / example_name / "v0_2"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "neutral.wav").write_bytes(b"neutral wav")
+    (artifact_dir / "planned.wav").write_bytes(b"planned wav")
+    manifest = {**VOICE_MANIFEST, "example_name": example_name}
+    if manifest_overrides:
+        manifest.update(manifest_overrides)
+    (artifact_dir / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
 
 def _generate_request(**overrides: object) -> GenerateRequest:
     payload = {
@@ -455,3 +519,78 @@ def test_repeated_evaluate_returns_cached_result_without_second_judge_call() -> 
 
     assert calls == 1
     assert first.evaluation == second.evaluation
+
+
+def test_voice_realization_available_from_public_demo_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    voice_root = tmp_path / "public_demo" / "voice"
+    _write_public_voice_fixture(voice_root)
+    monkeypatch.setattr(app_service, "PUBLIC_DEMO_VOICE_DIR", voice_root)
+
+    voice = app_service.get_voice_realization("corrective-feedback")
+
+    assert voice.available is True
+    assert voice.mode == "recorded"
+    assert voice.neutral is not None
+    assert voice.neutral.audio_url == "/api/audio/corrective-feedback/neutral"
+    assert voice.planned is not None
+    assert voice.planned.audio_url == "/api/audio/corrective-feedback/planned"
+    assert voice.delivery_adapter is not None
+    assert len(voice.delivery_adapter.supported_controls) == 1
+    assert len(voice.delivery_adapter.unsupported_controls) == 1
+
+
+def test_missing_public_voice_is_unavailable_without_results_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(app_service, "PUBLIC_DEMO_VOICE_DIR", tmp_path / "missing")
+
+    voice = app_service.get_voice_realization("corrective-feedback")
+
+    assert voice.available is False
+    assert voice.reason == "Recorded voice artifact unavailable."
+
+
+def test_voice_response_never_returns_manifest_secret_or_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    voice_root = tmp_path / "public_demo" / "voice"
+    _write_public_voice_fixture(
+        voice_root,
+        manifest_overrides={
+            "raw_response": "secret raw",
+            "source_path": "/Users/chengtengteng/private",
+            "Authorization": "Bearer sk-secret",
+        },
+    )
+    monkeypatch.setattr(app_service, "PUBLIC_DEMO_VOICE_DIR", voice_root)
+
+    payload = app_service.get_voice_realization("corrective-feedback").model_dump()
+    text = json.dumps(payload, ensure_ascii=False)
+
+    for forbidden in FORBIDDEN:
+        assert forbidden not in text
+
+
+def test_public_voice_audio_path_is_restricted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    voice_root = tmp_path / "public_demo" / "voice"
+    _write_public_voice_fixture(voice_root)
+    monkeypatch.setattr(app_service, "PUBLIC_DEMO_VOICE_DIR", voice_root)
+
+    path = app_service.resolve_public_voice_audio_path(
+        "corrective-feedback",
+        "neutral",
+    )
+
+    assert path == voice_root / "corrective-feedback" / "v0_2" / "neutral.wav"
+    with pytest.raises(app_service.VoiceArtifactUnavailable):
+        app_service.resolve_public_voice_audio_path("corrective-feedback", "bad")
+    with pytest.raises(app_service.ExampleNotFound):
+        app_service.resolve_public_voice_audio_path("../bad", "neutral")

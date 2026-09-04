@@ -238,11 +238,13 @@ recorded Evaluator v0.1 evidence are served from committed demo artifacts, not
 from git-ignored `results/`.
 
 - `Explore` shows recorded examples, recorded Speech Plans, recorded Evaluator
-  v0.1 results, and synchronized evidence focus without live model calls.
+  v0.1 results, synchronized evidence focus, and curated public Qwen3-TTS A/B
+  audio when committed voice artifacts are present. Ordinary playback does not
+  require a local TTS model.
 - `Live Studio` lets a user submit a teaching scenario, call Hy3 once, then
   explicitly run the independent frozen Evaluator v0.1 Judge. Live generation
   requires `HY3_API_KEY`; live evaluation requires `OPENROUTER_API_KEY` in
-  local `.env`.
+  local `.env`. Live Studio does not generate TTS.
 
 Terminal 1:
 
@@ -343,6 +345,21 @@ This creates `neutral.wav`, `planned.wav`, and an auditable
 `render_manifest.json` under the ignored `results/tts_demo/` tree. Unsupported
 pitch and segment-local controls are listed, not approximated. See
 [docs/TTS_RENDERER.md](docs/TTS_RENDERER.md).
+
+To publish already-rendered curated audio for the React Explore page:
+
+```bash
+python scripts/export_public_voice_artifacts.py \
+  --source-root results/tts_demo \
+  --output-root public_demo/voice
+```
+
+This command copies and verifies existing WAV artifacts. It does not invoke
+Qwen3-TTS, Hy3, or the Judge. The web app reads only `public_demo/voice/` for
+recorded playback and does not fallback to git-ignored `results/`. The current
+Qwen3-TTS adapter supports only a conservative utterance-level subset
+(`attitudinal_tone`, `emotion`, `speaking_rate`, `volume`); unsupported
+Speech Plan controls remain visible as preserved but not realized.
 
 The <=2 minute recording plan is in
 [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
