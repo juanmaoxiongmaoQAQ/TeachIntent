@@ -1,0 +1,72 @@
+{
+  "artifact_version": "public-demo-evaluator-artifact-v1",
+  "case_id": "PILOT-A-COR-01",
+  "critical_flags": [],
+  "evaluator_version": "v0.1",
+  "example_name": "corrective-feedback",
+  "judge_prompt_version": "v0.1",
+  "prompt_version": "v0.2",
+  "scores": {
+    "content_faithfulness_boundary": {
+      "brief_justification": "All substantive claims directly mirror the authoritative content anchor regarding direction change and acceleration, with no fabrication, contradiction, or unsupported expansion.",
+      "evidence": [
+        {
+          "source": "input.instructional_content.content_anchor",
+          "text": "即使速度大小不变，只要方向发生变化，加速度也不为0。"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_necessity_sparsity": {
+      "brief_justification": "Contains only one global attitudinal control that is pedagogically justified and appropriately sparse, with no unnecessary or redundant specifications.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan",
+          "text": "{\"global\":{\"attitudinal_tone\":\"安抚但纠正\"}}"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_pedagogy_alignment": {
+      "brief_justification": "The soothing-yet-corrective tone aligns perfectly with delivering corrective feedback to a slightly frustrated learner, supporting both the pedagogical function and learner state.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan.global.attitudinal_tone",
+          "text": "安抚但纠正"
+        }
+      ],
+      "score": 4
+    },
+    "intent_specific_instructional_adequacy": {
+      "brief_justification": "The correction is accurate, concise, and directly targets the specific misconception with clear causal reasoning, fully satisfying corrective feedback execution criteria.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "汽车转弯时方向改变了，所以加速度并不为0。"
+        }
+      ],
+      "score": 4
+    },
+    "learner_state_compatibility": {
+      "brief_justification": "Opens by validating the learner's correct observation before correcting, which appropriately addresses the slightly frustrated affective state and matches the high school cognitive level.",
+      "evidence": [
+        {
+          "source": "input.learner.affective_state",
+          "text": "slightly_frustrated"
+        }
+      ],
+      "score": 4
+    },
+    "pedagogical_intent_fidelity": {
+      "brief_justification": "The response explicitly identifies the learner's misconception and provides a direct correction, clearly performing corrective feedback as the primary pedagogical action.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "你提到速度大小没变，这观察本身没错；但加速度描述的是速度大小或方向的变化，汽车转弯时方向改变了，所以加速度并不为0。"
+        }
+      ],
+      "score": 4
+    }
+  },
+  "source_run_id": "20260901T043729Z"
+}

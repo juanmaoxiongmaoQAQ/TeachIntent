@@ -1,0 +1,80 @@
+{
+  "artifact_version": "public-demo-evaluator-artifact-v1",
+  "case_id": "RS-V1-SCA-CHA-01",
+  "critical_flags": [],
+  "evaluator_version": "v0.1",
+  "example_name": "scaffolding",
+  "judge_prompt_version": "v0.1",
+  "prompt_version": "v0.2",
+  "scores": {
+    "content_faithfulness_boundary": {
+      "brief_justification": "The question about listing gametes from Tt and tt parents is directly grounded in the content anchor. No fabrication or unsupported expansion.",
+      "evidence": [
+        {
+          "source": "input.instructional_content.content_anchor",
+          "text": "杂合亲本Tt形成配子时，每个配子只得到T或t中的一个；隐性纯合亲本tt形成的配子都携带t。"
+        },
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "分别列出Tt亲本和tt亲本各自可能产生哪些配子"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_necessity_sparsity": {
+      "brief_justification": "The delivery plan is minimal with a single global tone specification that is pedagogically justified by the need to acknowledge frustration while maintaining the scaffolding boundary. No unnecessary or redundant controls.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan",
+          "text": "{\"global\":{\"attitudinal_tone\":\"温和而坚定，不包办代替\"}}"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_pedagogy_alignment": {
+      "brief_justification": "The gentle-but-firm tone directly supports the scaffolding function: it validates the learner's affective state while maintaining the pedagogical boundary of not doing the work for them. Well-aligned with both the scaffolding intent and the frustrated learner state.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan.global.attitudinal_tone",
+          "text": "温和而坚定，不包办代替"
+        }
+      ],
+      "score": 4
+    },
+    "intent_specific_instructional_adequacy": {
+      "brief_justification": "The scaffold is well-calibrated: it reduces the task to a single clear step, is directly answerable, preserves a meaningful reasoning step for the learner, and sets up continuation. It responds contingently to the learner's procedural block.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "只做最基础的一步：分别列出Tt亲本和tt亲本各自可能产生哪些配子？你写完后，我们再往下走。"
+        }
+      ],
+      "score": 4
+    },
+    "learner_state_compatibility": {
+      "brief_justification": "The response acknowledges the learner's frustration empathetically, offers a small achievable step appropriate for a procedurally stuck student, and maintains a supportive boundary against the request to simply give the answer.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "我知道你现在因为填错表格很烦躁，不想再试"
+        },
+        {
+          "source": "input.learner.affective_state",
+          "text": "frustrated"
+        }
+      ],
+      "score": 4
+    },
+    "pedagogical_intent_fidelity": {
+      "brief_justification": "The response clearly performs scaffolding by asking the learner to list gametes from each parent as a manageable intermediate step, directly matching the primary pedagogical intent.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "我们先退一步，只做最基础的一步：分别列出Tt亲本和tt亲本各自可能产生哪些配子？"
+        }
+      ],
+      "score": 4
+    }
+  },
+  "source_run_id": "20260901T093114Z"
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -12,18 +13,28 @@ from teachintent.visual_demo import (
     CUSTOM_DELIVERY_STATUS,
     CUSTOM_EMPTY_DELIVERY_MESSAGE,
     CUSTOM_EVALUATION_PLACEHOLDER,
+    EVALUATION_NOT_RUN_MESSAGE,
     CustomInputError,
     PEDAGOGICAL_INTENTS,
     REVIEWER_EXAMPLES,
+    build_delivery_plan_view,
+    build_evidence_trace,
     build_custom_input,
+    build_evaluation_workbench_state,
     build_visual_state,
     clear_custom_evaluation_on_input_change,
+    classify_evidence_source,
+    evaluate_custom_workbench_state,
     evaluate_custom_visual_state,
     find_audio_pair,
     generate_custom_ui,
     generate_custom_visual_state,
+    highlight_exact_text,
     is_recommended_showcase,
     load_showcase_scenario_fields,
+    render_evidence_trace,
+    load_public_demo_evaluator_artifact,
+    select_evidence_trace,
     switch_recorded_example,
 )
 
@@ -176,8 +187,8 @@ def test_recorded_case_switch_does_not_call_live_judge(monkeypatch) -> None:
     monkeypatch.setattr(visual_demo_module, "run_live_evaluation", forbidden)
     outputs = switch_recorded_example("supportive-feedback")
 
-    assert "Recorded Evaluator v0.1 result" in outputs[4]
-    assert "No live judge call was made" in outputs[7]
+    assert "Recorded Evaluator v0.1 result" in outputs[5]
+    assert "No live judge call was made" in outputs[12]
 
 
 def test_primary_context_hides_prompt_injection_language() -> None:
@@ -227,7 +238,12 @@ def test_switch_recorded_example_refreshes_text_and_audio_paths(
         context,
         verbal,
         delivery,
+        evaluation_state,
         recorded_evaluation,
+        dimension_choices,
+        selected_dimension,
+        evidence_trace,
+        critical_flags,
         raw_json,
         evaluation_rows,
         evaluation_note,
@@ -239,10 +255,16 @@ def test_switch_recorded_example_refreshes_text_and_audio_paths(
 
     assert state["example_name"] == "scaffolding"
     assert state["prompt_version"] == "v0.2"
+    assert state["context_html"] == context
     assert "有限支架" in context
     assert verbal
-    assert "How to say" not in delivery
+    assert "HOW TO SAY" in delivery
+    assert evaluation_state["available"] is True
     assert "Recorded Evaluator v0.1 result" in recorded_evaluation
+    assert len(dimension_choices) == 6
+    assert selected_dimension.startswith("D1")
+    assert "Evidence Trace" in evidence_trace
+    assert "Critical flags" in critical_flags
     assert '"pedagogical_intent": "scaffolding"' in raw_json
     assert len(evaluation_rows) == 6
     assert "No live judge call was made" in evaluation_note
@@ -261,6 +283,238 @@ def test_corrective_feedback_is_recommended_showcase() -> None:
     assert is_recommended_showcase("corrective-feedback") is True
     assert is_recommended_showcase("scaffolding") is False
     assert is_recommended_showcase("supportive-feedback") is False
+
+
+def test_classify_evidence_source_routes_by_path_only() -> None:
+    assert classify_evidence_source("input.learner.affective_state") == "input"
+    assert classify_evidence_source("learner.knowledge_state") == "input"
+    assert classify_evidence_source("plan.verbal_plan.segments[0].text") == (
+        "speech_plan"
+    )
+    assert classify_evidence_source("delivery_plan.global.attitudinal_tone") == (
+        "speech_plan"
+    )
+    assert classify_evidence_source("external.note") == "unknown"
+
+
+def test_highlight_exact_text_marks_exact_substring_only() -> None:
+    rendered = highlight_exact_text(
+        "汽车转弯时方向发生变化，因此加速度不为0。",
+        "方向发生变化",
+    )
+
+    assert "<mark>方向发生变化</mark>" in rendered
+
+
+def test_highlight_exact_text_does_not_fabricate_unmatched_highlight() -> None:
+    rendered = highlight_exact_text("速度大小没变。", "方向发生变化")
+
+    assert "<mark>" not in rendered
+    assert rendered == "方向发生变化"
+
+
+def test_highlight_exact_text_escapes_html() -> None:
+    rendered = highlight_exact_text("<script>x</script>方向发生变化", "<script>")
+
+    assert "<script>" not in rendered
+    assert "&lt;script&gt;" in rendered
+    assert "<mark>&lt;script&gt;</mark>" in rendered
+
+
+def test_build_evidence_trace_keeps_multiple_evidence_groups() -> None:
+    input_doc = build_custom_input(
+        content_anchor="方向发生变化时，加速度不为0。",
+        teaching_scenario="学生认为只要速度大小不变就没有加速度。",
+        learner_utterance="速度没变，所以没有加速度。",
+        learner_level="high_school",
+        knowledge_state="misconception",
+        affective_state="slightly frustrated",
+        pedagogical_intent="corrective_feedback",
+    )
+    plan_doc = {
+        "schema_version": "1.0.0-rc.3",
+        "verbal_plan": {
+            "segments": [
+                {
+                    "segment_id": "seg_01",
+                    "text": "速度方向发生变化，所以加速度不为0。",
+                }
+            ]
+        },
+        "delivery_plan": {"global": {"attitudinal_tone": "安抚但纠正"}},
+    }
+    artifact = {
+        "scores": {
+            "delivery_pedagogy_alignment": {
+                "score": 4,
+                "evidence": [
+                    {
+                        "source": "input.learner.affective_state",
+                        "text": "slightly frustrated",
+                    },
+                    {
+                        "source": "plan.delivery_plan.global.attitudinal_tone",
+                        "text": "安抚但纠正",
+                    },
+                    {"source": "notes.manual", "text": "grounded note"},
+                ],
+                "brief_justification": "Delivery matches learner state.",
+            }
+        },
+        "critical_flags": [],
+    }
+
+    trace = build_evidence_trace(
+        input_doc, plan_doc, artifact, "delivery_pedagogy_alignment"
+    )
+    html = render_evidence_trace(trace)
+
+    assert trace["score"] == 4
+    assert len(trace["input_evidence"]) == 1
+    assert len(trace["speech_plan_evidence"]) == 1
+    assert len(trace["other_evidence"]) == 1
+    assert "<mark>slightly frustrated</mark>" in html
+    assert "<mark>安抚但纠正</mark>" in html
+    assert "Other grounded evidence" in html
+    assert "Delivery matches learner state." in html
+
+
+def test_recorded_artifact_builds_evidence_trace() -> None:
+    state = build_visual_state("corrective-feedback", "v0.2")
+    trace = build_evidence_trace(
+        state["example"]["input"],
+        state["example"]["speech_plan"],
+        state["evaluation_artifact"],
+        "pedagogical_intent_fidelity",
+    )
+
+    assert trace["available"] is True
+    assert trace["dimension_key"] == "D1"
+    assert trace["score"] == 4
+    assert trace["speech_plan_evidence"]
+
+
+def test_public_demo_artifact_loader_reads_committed_sanitized_artifact() -> None:
+    artifact = load_public_demo_evaluator_artifact("corrective-feedback", "v0.2")
+
+    assert artifact is not None
+    assert artifact["example_name"] == "corrective-feedback"
+    assert artifact["case_id"] == "PILOT-A-COR-01"
+    assert artifact["source_run_id"] == "20260901T043729Z"
+    assert set(artifact["scores"]) == set(DIMENSION_IDS)
+    for score in artifact["scores"].values():
+        assert score["score"] == 4
+        assert score["brief_justification"]
+        assert score["evidence"]
+
+
+def test_visual_demo_uses_public_artifact_when_results_are_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    public_dir = tmp_path / "public_demo" / "evaluator_artifacts"
+    public_dir.mkdir(parents=True)
+    source_artifact = (
+        visual_demo_module.PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR
+        / "corrective-feedback.v0_2.json"
+    )
+    shutil.copy2(source_artifact, public_dir / source_artifact.name)
+    monkeypatch.setattr(
+        visual_demo_module,
+        "PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR",
+        public_dir,
+    )
+
+    state = build_visual_state("corrective-feedback", "v0.2")
+
+    assert state["evaluation_state"]["available"] is True
+    assert len(state["dimension_choices"]) == 6
+    assert "Evidence Trace" in state["evidence_trace_html"]
+    assert "The response explicitly identifies the learner's misconception" in (
+        state["evaluation_markdown"]
+    )
+
+
+def test_visual_demo_does_not_fallback_to_private_results_for_evaluation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    empty_public_dir = tmp_path / "missing_public_demo" / "evaluator_artifacts"
+    empty_public_dir.mkdir(parents=True)
+    monkeypatch.setattr(
+        visual_demo_module,
+        "PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR",
+        empty_public_dir,
+    )
+
+    state = build_visual_state("corrective-feedback", "v0.2")
+
+    assert state["evaluation_artifact"] is None
+    assert state["evaluation_state"]["available"] is False
+    assert "Recorded evaluator artifact unavailable." in state["evaluation_markdown"]
+    assert "Recorded evaluator artifact unavailable." in state["evidence_trace_html"]
+
+
+def test_live_artifact_builds_same_evidence_trace_shape() -> None:
+    artifact = {
+        "scores": _judge_payload()["scores"],
+        "critical_flags": [],
+    }
+    state = {
+        "input": build_custom_input(
+            content_anchor="加速度描述速度变化。",
+            teaching_scenario="学生正在判断转弯车辆是否有加速度。",
+            learner_utterance="",
+            learner_level="high_school",
+            knowledge_state="misconception",
+            affective_state="",
+            pedagogical_intent="corrective_feedback",
+        ),
+        "speech_plan": VALID_PLAN,
+        "raw_response": json.dumps(VALID_PLAN, ensure_ascii=False),
+        "prompt_version": "v0.2",
+        "source": {"generator_version": "v0.1"},
+    }
+    evaluation_state = evaluate_custom_workbench_state(
+        state,
+        evaluation_runner=lambda *args: {"available": True, "artifact": artifact},
+    )
+
+    assert evaluation_state["available"] is True
+    assert len(evaluation_state["dimension_choices"]) == 6
+    assert "Evidence Trace" in evaluation_state["evidence_trace_html"]
+
+
+def test_dimension_switch_reads_state_without_calling_judge(monkeypatch) -> None:
+    def forbidden(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("dimension switch must not call Judge")
+
+    monkeypatch.setattr(visual_demo_module, "run_live_evaluation", forbidden)
+    state = build_visual_state("corrective-feedback", "v0.2")
+
+    for choice in state["dimension_choices"]:
+        trace_html = select_evidence_trace(state["evaluation_state"], choice)
+        assert "Evidence Trace" in trace_html
+
+
+def test_live_evaluation_not_run_state_has_no_fake_dimension_scores() -> None:
+    state = build_evaluation_workbench_state(
+        None, None, None, unavailable_reason=EVALUATION_NOT_RUN_MESSAGE
+    )
+
+    assert state["available"] is False
+    assert state["dimension_choices"] == []
+    assert "Evaluation not run yet" in state["evidence_trace_html"]
+    assert "/ 4" not in state["evidence_trace_html"]
+
+
+def test_empty_delivery_renders_default_decision_not_failure() -> None:
+    rendered = build_delivery_plan_view(VALID_PLAN)
+
+    assert "Default rendering selected" in rendered
+    assert "TeachIntent selected no additional delivery control" in rendered
+    assert "failure" not in rendered.lower()
 
 
 def test_load_showcase_scenario_fills_input_fields_only() -> None:

@@ -1,0 +1,84 @@
+{
+  "artifact_version": "public-demo-evaluator-artifact-v1",
+  "case_id": "RS-V1-SUP-CHX-01",
+  "critical_flags": [],
+  "evaluator_version": "v0.1",
+  "example_name": "supportive-feedback",
+  "judge_prompt_version": "v0.1",
+  "prompt_version": "v0.2",
+  "scores": {
+    "content_faithfulness_boundary": {
+      "brief_justification": "All substantive claims are directly supported by the content anchor; the response paraphrases the anchor's statement about cross-disciplinary applicability without adding unsupported facts.",
+      "evidence": [
+        {
+          "source": "input.instructional_content.content_anchor",
+          "text": "这一顺序适用于不同学科的折线图"
+        },
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "先确认坐标轴再描述趋势的顺序正适用于不同学科的折线图"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_necessity_sparsity": {
+      "brief_justification": "Empty delivery plan is valid; no unnecessary or unjustified controls are specified.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan",
+          "text": "{}"
+        }
+      ],
+      "score": 4
+    },
+    "delivery_pedagogy_alignment": {
+      "brief_justification": "No explicit delivery controls are specified, and the case contains no clear pedagogical need for explicit delivery adaptation; the verbal content alone adequately conveys supportive feedback.",
+      "evidence": [
+        {
+          "source": "plan.delivery_plan",
+          "text": "{}"
+        }
+      ],
+      "score": 4
+    },
+    "intent_specific_instructional_adequacy": {
+      "brief_justification": "Supportive feedback is grounded in specific observable learner behavior, avoids empty praise, and directly answers the learner's question about cross-disciplinary validity.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "你刚才像读地理图那样先确认横轴、纵轴，再看曲线，并正确判断出这种物质的浓度在下降"
+        }
+      ],
+      "score": 4
+    },
+    "learner_state_compatibility": {
+      "brief_justification": "Response directly addresses the learner's seeking_confirmation state by providing clear validation of their cross-domain transfer, matching both cognitive and affective cues.",
+      "evidence": [
+        {
+          "source": "input.learner.affective_state",
+          "text": "seeking_confirmation"
+        },
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "你的用法完全合理"
+        }
+      ],
+      "score": 4
+    },
+    "pedagogical_intent_fidelity": {
+      "brief_justification": "Response clearly performs supportive feedback by validating the learner's correct cross-disciplinary transfer and confirming their approach is appropriate.",
+      "evidence": [
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "这个跨学科迁移做得很好"
+        },
+        {
+          "source": "plan.verbal_plan.segments[0].text",
+          "text": "你的用法完全合理"
+        }
+      ],
+      "score": 4
+    }
+  },
+  "source_run_id": "20260901T093114Z"
+}

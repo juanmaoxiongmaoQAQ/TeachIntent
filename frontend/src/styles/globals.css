@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #f1f5f9;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+summary {
+  font: inherit;
+}
+
+mark {
+  border-radius: 0.25rem;
+  background: #fde68a;
+  padding: 0.05rem 0.12rem;
+  color: inherit;
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

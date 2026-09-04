@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import html
 import json
 import os
 import re
@@ -63,6 +64,10 @@ CUSTOM_EVALUATION_PLACEHOLDER = (
     "Evaluation unavailable\n\nGenerate a Speech Plan first, then click "
     "Evaluate this plan."
 )
+EVALUATION_NOT_RUN_MESSAGE = (
+    "Evaluation not run yet\n\nGenerate the Speech Plan first,\nthen run the "
+    "independent Evaluator."
+)
 SAFE_ERROR_PATTERNS = (
     (re.compile(r"Authorization:\s*Bearer\s+\S+"), "Authorization: [redacted]"),
     (re.compile(r"Bearer\s+\S+"), "Bearer [redacted]"),
@@ -71,22 +76,74 @@ SAFE_ERROR_PATTERNS = (
     (re.compile(r"\.env"), "[env-file]"),
 )
 DEMO_CSS = """
-.ti-wrap {max-width: 1040px; margin: 0 auto;}
-.ti-header {padding: 28px 0 12px;}
+.ti-wrap {max-width: 1320px; margin: 0 auto;}
+.ti-header {padding: 26px 0 12px;}
 .ti-header h1 {font-size: 42px; line-height: 1.05; margin: 0;}
-.ti-header p {font-size: 20px; margin: 8px 0 0; color: #424242;}
+.ti-header p {font-size: 18px; margin: 8px 0 0; color: #424242;}
 .ti-section h2 {font-size: 22px; margin-top: 20px;}
 .ti-card {
     border: 1px solid #e4e4e7;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 18px;
     background: #ffffff;
-    min-height: 160px;
+    min-height: 120px;
 }
 .ti-card h3 {margin-top: 0;}
+.ti-workbench h3,
+.ti-evidence h3,
+.ti-context h3 {margin: 0 0 10px;}
+.ti-context-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.ti-context-item,
+.ti-segment,
+.ti-delivery-item,
+.ti-evidence-item {
+    border: 1px solid #ececef;
+    border-radius: 10px;
+    padding: 12px;
+    background: #fcfcfd;
+}
+.ti-label {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.ti-value {white-space: pre-wrap;}
+.ti-segment-id {
+    color: #6b7280;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+.ti-panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #374151;
+    margin: 4px 0 10px;
+}
+.ti-default-decision {
+    border-left: 4px solid #16a34a;
+}
+.ti-scoreline {
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.ti-critical {
+    border-top: 1px solid #ececef;
+    margin-top: 14px;
+    padding-top: 12px;
+}
+mark {background: #fff3a3; padding: 0 2px; border-radius: 3px;}
 .ti-audio-card {
     border: 1px solid #d8d8dd;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 18px;
     background: #fbfbfc;
 }
@@ -125,22 +182,19 @@ DIMENSION_LABELS = {
     "delivery_necessity_sparsity": "Delivery Necessity / Sparsity",
     "delivery_pedagogy_alignment": "Delivery–Pedagogy Alignment",
 }
-RECORDED_EVALUATION_FILES = {
-    "20260901T043729Z": (
-        REPO_ROOT
-        / "results"
-        / "prompt_v0_2_rc2_development_evaluation"
-        / "20260901T043729Z"
-        / "evaluations.jsonl"
-    ),
-    "20260901T093114Z": (
-        REPO_ROOT
-        / "results"
-        / "release_sanity"
-        / "20260901T093114Z"
-        / "evaluations.jsonl"
-    ),
+DIMENSION_SHORT_LABELS = {
+    "pedagogical_intent_fidelity": "Intent Fidelity",
+    "content_faithfulness_boundary": "Content Faithfulness",
+    "learner_state_compatibility": "Learner Compatibility",
+    "intent_specific_instructional_adequacy": "Instructional Adequacy",
+    "delivery_necessity_sparsity": "Delivery Sparsity",
+    "delivery_pedagogy_alignment": "Delivery Alignment",
 }
+D_KEY_TO_DIMENSION = {d_key: dimension_id for d_key, dimension_id, _ in DIMENSION_DISPLAY}
+PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR = (
+    REPO_ROOT / "public_demo" / "evaluator_artifacts"
+)
+PUBLIC_DEMO_ARTIFACT_VERSION = "public-demo-evaluator-artifact-v1"
 
 LiveRunner = Callable[[dict[str, Any], str], Any]
 EvaluationRunner = Callable[
@@ -364,6 +418,306 @@ def safe_json_dumps(value: object) -> str:
     return sanitize_ui_text(json.dumps(value, ensure_ascii=False, indent=2))
 
 
+def _esc(value: object) -> str:
+    return html.escape("" if value is None else str(value), quote=True)
+
+
+def _render_field(label: str, value: object) -> str:
+    display = "Not provided" if value in (None, "") else value
+    return (
+        "<div class='ti-context-item'>"
+        f"<div class='ti-label'>{_esc(label)}</div>"
+        f"<div class='ti-value'>{_esc(display)}</div>"
+        "</div>"
+    )
+
+
+def build_teaching_context_view(input_doc: dict[str, Any]) -> str:
+    """Render original input fields as a reviewer-facing context card."""
+    instructional_content = input_doc["instructional_content"]
+    pedagogical_context = input_doc["pedagogical_context"]
+    learner = input_doc["learner"]
+    intent = input_doc["pedagogical_intent"]["primary"]
+    fields = [
+        ("Content anchor", instructional_content["content_anchor"]),
+        ("Teaching scenario", pedagogical_context["scenario"]),
+        ("Learner utterance", pedagogical_context.get("learner_utterance")),
+        ("Pedagogical intent", intent),
+        ("Level", learner["level"]),
+        ("Knowledge state", learner["knowledge_state"]),
+        ("Affective state", learner.get("affective_state")),
+    ]
+    return (
+        "<div class='ti-card ti-context'>"
+        "<h3>Teaching Context</h3>"
+        "<div class='ti-context-grid'>"
+        + "".join(_render_field(label, value) for label, value in fields)
+        + "</div></div>"
+    )
+
+
+def build_verbal_plan_view(plan_doc: dict[str, Any]) -> str:
+    """Render verbal_plan by segment without discarding segment identity."""
+    segments = plan_doc["verbal_plan"]["segments"]
+    segment_html = []
+    for segment in segments:
+        segment_html.append(
+            "<div class='ti-segment'>"
+            f"<div class='ti-segment-id'>{_esc(segment['segment_id'])}</div>"
+            f"<div class='ti-value'>{_esc(segment['text'])}</div>"
+            "</div>"
+        )
+    return (
+        "<div class='ti-panel-title'>WHAT TO SAY</div>"
+        + "".join(segment_html)
+    )
+
+
+def build_delivery_plan_view(plan_doc: dict[str, Any]) -> str:
+    """Render delivery_plan as semantic decisions, never acoustic sliders."""
+    delivery = plan_doc["delivery_plan"]
+    if not delivery:
+        return (
+            "<div class='ti-panel-title'>HOW TO SAY</div>"
+            "<div class='ti-delivery-item ti-default-decision'>"
+            "<div class='ti-label'>Delivery decision</div>"
+            "<div class='ti-value'>✓ Default rendering selected</div>"
+            "<p>TeachIntent selected no additional delivery control for this case.</p>"
+            "</div>"
+        )
+
+    global_delivery = delivery.get("global", {})
+    prosody = global_delivery.get("prosody", {})
+    rows = [("Delivery decision", CUSTOM_DELIVERY_STATUS), ("Scope", "Global")]
+    if global_delivery.get("attitudinal_tone"):
+        rows.append(("Attitudinal tone", global_delivery["attitudinal_tone"]))
+    if global_delivery.get("emotion"):
+        rows.append(("Emotion", global_delivery["emotion"]))
+    if prosody.get("speaking_rate"):
+        rows.append(("Speaking rate", prosody["speaking_rate"]))
+    if prosody.get("volume"):
+        rows.append(("Volume", prosody["volume"]))
+    if len(rows) == 2:
+        rows.append(("Details", "See Technical details for non-primary controls."))
+
+    return (
+        "<div class='ti-panel-title'>HOW TO SAY</div>"
+        + "".join(
+            "<div class='ti-delivery-item'>"
+            f"<div class='ti-label'>{_esc(label)}</div>"
+            f"<div class='ti-value'>{_esc(value)}</div>"
+            "</div>"
+            for label, value in rows
+        )
+    )
+
+
+def classify_evidence_source(source: str) -> str:
+    """Route evaluator evidence by source path only."""
+    if source.startswith(
+        (
+            "input.",
+            "instructional_content.",
+            "pedagogical_context.",
+            "learner.",
+            "pedagogical_intent.",
+        )
+    ):
+        return "input"
+    if source.startswith(
+        (
+            "plan.",
+            "speech_plan.",
+            "verbal_plan.",
+            "delivery_plan.",
+        )
+    ):
+        return "speech_plan"
+    return "unknown"
+
+
+_PATH_TOKEN_RE = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
+
+
+def _path_tokens(path: str) -> list[str | int]:
+    tokens: list[str | int] = []
+    for part in path.split("."):
+        for match in _PATH_TOKEN_RE.finditer(part):
+            key, index = match.groups()
+            tokens.append(int(index) if index is not None else key)
+    return tokens
+
+
+def _lookup_path(doc: Any, path: str) -> Any:
+    current = doc
+    for token in _path_tokens(path):
+        if isinstance(token, int):
+            if not isinstance(current, list) or token >= len(current):
+                return None
+            current = current[token]
+        else:
+            if not isinstance(current, dict) or token not in current:
+                return None
+            current = current[token]
+    return current
+
+
+def _source_lookup_path(source: str, route: str) -> str:
+    prefixes = (
+        ("input.", "input"),
+        ("plan.", "speech_plan"),
+        ("speech_plan.", "speech_plan"),
+    )
+    for prefix, prefix_route in prefixes:
+        if source.startswith(prefix) and route == prefix_route:
+            return source[len(prefix) :]
+    return source
+
+
+def _source_value(
+    input_doc: dict[str, Any],
+    plan_doc: dict[str, Any],
+    source: str,
+) -> Any:
+    route = classify_evidence_source(source)
+    if route == "input":
+        return _lookup_path(input_doc, _source_lookup_path(source, route))
+    if route == "speech_plan":
+        return _lookup_path(plan_doc, _source_lookup_path(source, route))
+    return None
+
+
+def _source_text(
+    input_doc: dict[str, Any],
+    plan_doc: dict[str, Any],
+    source: str,
+) -> str | None:
+    value = _source_value(input_doc, plan_doc, source)
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return str(value)
+
+
+def highlight_exact_text(full_text: str, evidence_text: str) -> str:
+    """HTML-escape text and mark only exact raw substring matches."""
+    index = full_text.find(evidence_text)
+    if index < 0:
+        return _esc(evidence_text)
+    before = full_text[:index]
+    match = full_text[index : index + len(evidence_text)]
+    after = full_text[index + len(evidence_text) :]
+    return f"{_esc(before)}<mark>{_esc(match)}</mark>{_esc(after)}"
+
+
+def _evidence_item_state(
+    input_doc: dict[str, Any],
+    plan_doc: dict[str, Any],
+    item: dict[str, Any],
+) -> dict[str, Any]:
+    source = str(item.get("source", ""))
+    text = str(item.get("text", ""))
+    full_text = _source_text(input_doc, plan_doc, source)
+    matched = full_text is not None and text in full_text
+    return {
+        "source": source,
+        "text": text,
+        "route": classify_evidence_source(source),
+        "matched": matched,
+        "html": highlight_exact_text(full_text, text) if matched else _esc(text),
+    }
+
+
+def build_evidence_trace(
+    input_doc: dict[str, Any],
+    plan_doc: dict[str, Any],
+    evaluation_artifact: dict[str, Any] | None,
+    dimension_id: str,
+) -> dict[str, Any]:
+    """Build a structured evidence trace from evaluator artifact fields only."""
+    if not evaluation_artifact:
+        return {"available": False, "reason": "No evaluator artifact is available."}
+    scores = evaluation_artifact.get("scores") or {}
+    dimension = scores.get(dimension_id)
+    if not isinstance(dimension, dict):
+        return {
+            "available": False,
+            "reason": f"No evaluator score is available for {dimension_id}.",
+        }
+
+    grouped = {"input": [], "speech_plan": [], "unknown": []}
+    for item in dimension.get("evidence") or []:
+        if not isinstance(item, dict):
+            continue
+        evidence = _evidence_item_state(input_doc, plan_doc, item)
+        grouped[evidence["route"]].append(evidence)
+
+    return {
+        "available": True,
+        "dimension_id": dimension_id,
+        "dimension_key": _dimension_key_for_id(dimension_id),
+        "label": DIMENSION_LABELS[dimension_id],
+        "score": dimension.get("score"),
+        "input_evidence": grouped["input"],
+        "speech_plan_evidence": grouped["speech_plan"],
+        "other_evidence": grouped["unknown"],
+        "judge_rationale": str(dimension.get("brief_justification") or ""),
+    }
+
+
+def _dimension_key_for_id(dimension_id: str) -> str:
+    for d_key, candidate, _label in DIMENSION_DISPLAY:
+        if candidate == dimension_id:
+            return d_key
+    return dimension_id
+
+
+def _dimension_id_from_selection(selection: str | None) -> str:
+    if not selection:
+        return DIMENSION_DISPLAY[0][1]
+    d_key = selection.strip().split(maxsplit=1)[0]
+    return D_KEY_TO_DIMENSION.get(d_key, DIMENSION_DISPLAY[0][1])
+
+
+def _render_evidence_group(title: str, items: list[dict[str, Any]]) -> str:
+    if not items:
+        return ""
+    rendered = [f"<h4>{_esc(title)}</h4>"]
+    for item in items:
+        evidence_label = "Highlighted source" if item["matched"] else "Evidence excerpt"
+        rendered.append(
+            "<div class='ti-evidence-item'>"
+            f"<div class='ti-label'>{_esc(evidence_label)}</div>"
+            f"<div class='ti-value'>{item['html']}</div>"
+            f"<div class='ti-muted'>source: {_esc(item['source'])}</div>"
+            "</div>"
+        )
+    return "".join(rendered)
+
+
+def render_evidence_trace(trace: dict[str, Any]) -> str:
+    if not trace.get("available"):
+        return (
+            "<div class='ti-card ti-evidence'>"
+            "<h3>Evidence Trace</h3>"
+            f"<p>{_esc(trace.get('reason', 'Evaluation not available.'))}</p>"
+            "</div>"
+        )
+    return (
+        "<div class='ti-card ti-evidence'>"
+        "<h3>Evidence Trace</h3>"
+        f"<div class='ti-scoreline'>{_esc(trace['dimension_key'])} "
+        f"{_esc(trace['label'])}<br>Score: {_esc(trace['score'])} / 4</div>"
+        + _render_evidence_group("Input evidence", trace["input_evidence"])
+        + _render_evidence_group("Speech Plan evidence", trace["speech_plan_evidence"])
+        + _render_evidence_group("Other grounded evidence", trace["other_evidence"])
+        + "<h4>Judge rationale</h4>"
+        f"<div class='ti-evidence-item'>{_esc(trace['judge_rationale'])}</div>"
+        "</div>"
+    )
+
+
 def _score_for_dimension(scores: dict[str, Any], d_key: str, dimension_id: str) -> Any:
     if d_key in scores:
         return scores[d_key]
@@ -406,37 +760,48 @@ def _critical_flags_for_display(
     return [str(flag) for flag in flags]
 
 
-def _evaluation_artifact_from_recorded(
-    recorded_evaluation: dict[str, Any] | None,
-    source: dict[str, Any],
+def public_demo_evaluator_artifact_path(
+    example_name: str,
     prompt_version: str,
-) -> dict[str, Any] | None:
-    if not recorded_evaluation:
-        return None
-    run_id = recorded_evaluation.get("run_id")
-    case_id = source.get("case_id")
-    path = RECORDED_EVALUATION_FILES.get(str(run_id))
-    if not run_id or not case_id or path is None or not path.is_file():
-        return None
+) -> Path:
+    """Return the committed public evaluator artifact path for a demo example."""
+    safe_prompt_version = prompt_version.replace(".", "_")
+    return PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR / (
+        f"{example_name}.{safe_prompt_version}.json"
+    )
 
-    for line in path.read_text(encoding="utf-8").splitlines():
-        record = json.loads(line)
-        if record.get("case_id") != case_id:
-            continue
-        artifact = record.get("final_artifact")
-        if not isinstance(artifact, dict):
-            continue
-        run_metadata = artifact.get("run_metadata") or {}
-        artifact_prompt = record.get("prompt_version") or run_metadata.get(
-            "prompt_version"
-        )
-        if prompt_version == PRIMARY_PROMPT_VERSION and artifact_prompt not in (
-            "v0.2",
-            "v0.2-rc.2",
-        ):
-            continue
-        return artifact
-    return None
+
+def load_public_demo_evaluator_artifact(
+    example_name: str,
+    prompt_version: str = PRIMARY_PROMPT_VERSION,
+) -> dict[str, Any] | None:
+    """Load a portable recorded evaluator artifact without reading results/."""
+    path = public_demo_evaluator_artifact_path(example_name, prompt_version)
+    if not path.is_file():
+        return None
+    try:
+        artifact = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if artifact.get("artifact_version") != PUBLIC_DEMO_ARTIFACT_VERSION:
+        return None
+    if artifact.get("example_name") != example_name:
+        return None
+    if artifact.get("prompt_version") != prompt_version:
+        return None
+    scores = artifact.get("scores")
+    if not isinstance(scores, dict):
+        return None
+    for _d_key, dimension_id, _label in DIMENSION_DISPLAY:
+        score_obj = scores.get(dimension_id)
+        if not isinstance(score_obj, dict):
+            return None
+        if "score" not in score_obj or not score_obj.get("brief_justification"):
+            return None
+        evidence = score_obj.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            return None
+    return artifact
 
 
 def _evaluation_markdown(
@@ -479,19 +844,127 @@ def _evaluation_markdown(
     return "\n".join(lines)
 
 
-def _recorded_evaluation_markdown(example: dict[str, Any]) -> str:
-    recorded_evaluation = example.get("recorded_evaluation")
-    artifact = _evaluation_artifact_from_recorded(
-        recorded_evaluation,
-        example.get("source") or {},
-        example["prompt_version"],
-    )
+def _recorded_evaluation_markdown(
+    example_name: str,
+    example: dict[str, Any],
+) -> str:
+    artifact = _recorded_evaluation_artifact(example_name, example)
+    if artifact is None:
+        return "## Evaluation\n\nRecorded evaluator artifact unavailable."
+    recorded_evaluation = {
+        "scores": artifact.get("scores") or {},
+        "critical_flags": artifact.get("critical_flags") or [],
+    }
     return _evaluation_markdown(
         recorded_evaluation,
         heading="Recorded Evaluator v0.1 result",
-        subheading="",
+        subheading="Recorded existing evaluation evidence; no live Judge call.",
         artifact=artifact,
     )
+
+
+def _recorded_evaluation_artifact(
+    example_name: str,
+    example: dict[str, Any],
+) -> dict[str, Any] | None:
+    return load_public_demo_evaluator_artifact(
+        example_name,
+        example["prompt_version"],
+    )
+
+
+def dimension_choices_for_artifact(artifact: dict[str, Any] | None) -> list[str]:
+    if not artifact or not isinstance(artifact.get("scores"), dict):
+        return []
+    choices = []
+    scores = artifact["scores"]
+    for d_key, dimension_id, _label in DIMENSION_DISPLAY:
+        score_obj = scores.get(dimension_id)
+        if not isinstance(score_obj, dict):
+            continue
+        choices.append(
+            f"{d_key}  {DIMENSION_SHORT_LABELS[dimension_id]}  "
+            f"{score_obj.get('score', '')}/4"
+        )
+    return choices
+
+
+def render_critical_flags(artifact: dict[str, Any] | None) -> str:
+    flags = (artifact or {}).get("critical_flags") or []
+    lines = [
+        "<div class='ti-card ti-critical'>",
+        "<h3>Critical flags</h3>",
+    ]
+    if not flags:
+        lines.append("<p>None</p>")
+    else:
+        for flag in flags:
+            if isinstance(flag, dict):
+                lines.append(
+                    "<div class='ti-evidence-item'>"
+                    f"<div class='ti-label'>{_esc(flag.get('flag', ''))}</div>"
+                    f"<div class='ti-value'>{_esc(flag.get('brief_justification', ''))}</div>"
+                    "</div>"
+                )
+            else:
+                lines.append(f"<div class='ti-evidence-item'>{_esc(flag)}</div>")
+    lines.append("</div>")
+    return "".join(lines)
+
+
+def build_evaluation_workbench_state(
+    input_doc: dict[str, Any] | None,
+    plan_doc: dict[str, Any] | None,
+    artifact: dict[str, Any] | None,
+    *,
+    unavailable_reason: str = EVALUATION_NOT_RUN_MESSAGE,
+) -> dict[str, Any]:
+    if not artifact or not isinstance(artifact.get("scores"), dict):
+        return {
+            "available": False,
+            "input": input_doc,
+            "speech_plan": plan_doc,
+            "artifact": artifact,
+            "dimension_choices": [],
+            "selected_dimension": None,
+            "evidence_trace_html": render_evidence_trace(
+                {"available": False, "reason": unavailable_reason}
+            ),
+            "critical_flags_html": render_critical_flags(None),
+        }
+
+    choices = dimension_choices_for_artifact(artifact)
+    selected = choices[0] if choices else None
+    trace = build_evidence_trace(
+        input_doc or {}, plan_doc or {}, artifact, _dimension_id_from_selection(selected)
+    )
+    return {
+        "available": True,
+        "input": input_doc,
+        "speech_plan": plan_doc,
+        "artifact": artifact,
+        "dimension_choices": choices,
+        "selected_dimension": selected,
+        "evidence_trace_html": render_evidence_trace(trace),
+        "critical_flags_html": render_critical_flags(artifact),
+    }
+
+
+def select_evidence_trace(
+    evaluation_state: dict[str, Any] | None,
+    selected_dimension: str | None,
+) -> str:
+    if not evaluation_state or not evaluation_state.get("available"):
+        return render_evidence_trace(
+            {"available": False, "reason": EVALUATION_NOT_RUN_MESSAGE}
+        )
+    trace = build_evidence_trace(
+        evaluation_state["input"],
+        evaluation_state["speech_plan"],
+        evaluation_state["artifact"],
+        _dimension_id_from_selection(selected_dimension),
+    )
+    return render_evidence_trace(trace)
 
 
 def _evaluator_result_to_state(result: Any) -> dict[str, Any]:
@@ -652,6 +1125,13 @@ def build_visual_state(
             "planned TTS uses the same empty instruction as neutral TTS."
         )
 
+    recorded_artifact = _recorded_evaluation_artifact(example_name, example)
+    evaluation_state = build_evaluation_workbench_state(
+        example["input"],
+        plan_doc,
+        recorded_artifact,
+        unavailable_reason="Recorded evaluator artifact unavailable.",
+    )
     raw_payload = demo.build_demo_payload(example, mode=mode)
     return {
         "example_name": example_name,
@@ -659,10 +1139,19 @@ def build_visual_state(
         "mode": mode,
         "example": example,
         "title": example["title"],
+        "context_html": build_teaching_context_view(example["input"]),
         "context_markdown": _context_markdown(example["input"]),
+        "what_to_say_html": build_verbal_plan_view(plan_doc),
         "verbal_markdown": _verbal_markdown(plan_doc),
+        "how_to_say_html": build_delivery_plan_view(plan_doc),
         "delivery_markdown": _delivery_markdown(plan_doc),
-        "evaluation_markdown": _recorded_evaluation_markdown(example),
+        "evaluation_markdown": _recorded_evaluation_markdown(example_name, example),
+        "evaluation_artifact": recorded_artifact,
+        "evaluation_state": evaluation_state,
+        "dimension_choices": evaluation_state["dimension_choices"],
+        "selected_dimension": evaluation_state["selected_dimension"],
+        "evidence_trace_html": evaluation_state["evidence_trace_html"],
+        "critical_flags_html": evaluation_state["critical_flags_html"],
         "raw_json": safe_json_dumps(raw_payload),
         "evaluation_rows": evaluation_rows,
         "evaluation_note": evaluation_note,
@@ -684,10 +1173,15 @@ def _ui_outputs(state: dict[str, Any]) -> tuple[Any, ...]:
     }
     return (
         state,
-        state["context_markdown"],
-        state["verbal_markdown"],
-        state["delivery_markdown"],
+        state["context_html"],
+        state["what_to_say_html"],
+        state["how_to_say_html"],
+        state["evaluation_state"],
         state["evaluation_markdown"],
+        state["dimension_choices"],
+        state["selected_dimension"],
+        state["evidence_trace_html"],
+        state["critical_flags_html"],
         state["raw_json"],
         state["evaluation_rows"],
         state["evaluation_note"],
@@ -778,8 +1272,11 @@ def generate_custom_visual_state(
         "prompt_version": PRIMARY_PROMPT_VERSION,
         "source": source,
         "status": "Generated live with Hy3 · Prompt v0.2",
+        "context_html": build_teaching_context_view(input_doc),
         "context_markdown": _custom_context_markdown(input_doc),
+        "what_to_say_html": build_verbal_plan_view(plan_doc),
         "verbal_markdown": _verbal_markdown(plan_doc),
+        "how_to_say_html": build_delivery_plan_view(plan_doc),
         "delivery_markdown": _custom_delivery_markdown(plan_doc),
         "audio_status": CUSTOM_AUDIO_MESSAGE,
         "input_json": safe_json_dumps(input_doc),
@@ -792,9 +1289,9 @@ def _custom_success_outputs(state: dict[str, Any]) -> tuple[Any, ...]:
     return (
         state,
         state["status"],
-        state["context_markdown"],
-        state["verbal_markdown"],
-        state["delivery_markdown"],
+        state["context_html"],
+        state["what_to_say_html"],
+        state["how_to_say_html"],
         state["audio_status"],
         "",
         state["input_json"],
@@ -927,6 +1424,60 @@ def evaluate_custom_visual_state(
     return _live_evaluation_markdown(evaluation)
 
 
+def evaluate_custom_workbench_state(
+    state: dict[str, Any] | None,
+    evaluation_runner: EvaluationRunner | None = None,
+) -> dict[str, Any]:
+    if not state:
+        return build_evaluation_workbench_state(
+            None, None, None, unavailable_reason=EVALUATION_NOT_RUN_MESSAGE
+        )
+    raw_response = state.get("raw_response")
+    if not isinstance(raw_response, str) or not raw_response.strip():
+        return build_evaluation_workbench_state(
+            state.get("input"),
+            state.get("speech_plan"),
+            None,
+            unavailable_reason=(
+                "Evaluation unavailable\n\nThe live Hy3 raw_response is unavailable, "
+                "so the frozen Evaluator cannot evaluate this plan without "
+                "fabricating Generator output."
+            ),
+        )
+
+    runner = evaluation_runner or run_live_evaluation
+    try:
+        evaluation = runner(
+            state["input"],
+            state["speech_plan"],
+            raw_response,
+            state["prompt_version"],
+            state["source"],
+        )
+    except Exception as exc:
+        evaluation = {
+            "available": False,
+            "failure_summary": f"{type(exc).__name__}: {exc}",
+        }
+
+    if not evaluation.get("available"):
+        return build_evaluation_workbench_state(
+            state["input"],
+            state["speech_plan"],
+            evaluation.get("artifact"),
+            unavailable_reason=(
+                "Evaluation unavailable\n\n"
+                f"{sanitize_ui_text(evaluation.get('failure_summary', 'Unknown evaluator failure.'))}"
+            ),
+        )
+
+    return build_evaluation_workbench_state(
+        state["input"],
+        state["speech_plan"],
+        evaluation["artifact"],
+    )
+
+
 def _render_audio_for_state(
     state: dict[str, Any],
     speaker: str,
@@ -979,14 +1530,28 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
 
     with gr.Blocks(**blocks_kwargs) as app:
         state = gr.State(initial)
+        recorded_eval_state = gr.State(initial["evaluation_state"])
         gr.HTML(
             "<div class='ti-header'>"
             "<h1>TeachIntent</h1>"
+            "<p>Pedagogical Speech Control Studio</p>"
             "<p>让 AI Tutor 不仅知道说什么，也知道怎么说</p>"
             "</div>"
         )
+
+        def radio_update(evaluation_state: dict[str, Any]) -> Any:
+            choices = evaluation_state.get("dimension_choices", [])
+            return gr.update(
+                choices=choices,
+                value=evaluation_state.get("selected_dimension"),
+                visible=bool(choices),
+            )
+
+        def hidden_radio_update() -> Any:
+            return gr.update(choices=[], value=None, visible=False)
+
         with gr.Tabs():
-            with gr.Tab("Explore examples"):
+            with gr.Tab("Explore"):
                 example_picker = gr.Dropdown(
                     choices=list(REVIEWER_EXAMPLES),
                     value=PRIMARY_EXAMPLE,
@@ -998,25 +1563,25 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                     visible=is_recommended_showcase(PRIMARY_EXAMPLE),
                 )
 
-                gr.Markdown("## Teaching scenario", elem_classes=["ti-section"])
-                context = gr.Markdown(
-                    initial["context_markdown"], elem_classes=["ti-card"]
-                )
-
-                gr.Markdown(
-                    "## Generated Speech Plan", elem_classes=["ti-section"]
-                )
-                with gr.Row():
-                    with gr.Column(elem_classes=["ti-card"]):
-                        gr.Markdown("### What to say")
-                        verbal = gr.Markdown(initial["verbal_markdown"])
-                    with gr.Column(elem_classes=["ti-card"]):
-                        gr.Markdown("### How to say")
-                        delivery = gr.Markdown(initial["delivery_markdown"])
-
-                recorded_evaluation = gr.Markdown(
-                    initial["evaluation_markdown"], elem_classes=["ti-card"]
-                )
+                context = gr.HTML(initial["context_html"])
+                with gr.Row(elem_classes=["ti-workbench"]):
+                    with gr.Column(scale=5):
+                        speech_plan_panel = gr.HTML(
+                            "<div class='ti-card'><h3>Speech Plan</h3>"
+                            + initial["what_to_say_html"]
+                            + initial["how_to_say_html"]
+                            + "</div>",
+                        )
+                    with gr.Column(scale=4):
+                        gr.Markdown("### Evaluation")
+                        recorded_dimension = gr.Radio(
+                            choices=initial["dimension_choices"],
+                            value=initial["selected_dimension"],
+                            label="Recorded Evaluator v0.1 result",
+                            interactive=True,
+                        )
+                        recorded_trace = gr.HTML(initial["evidence_trace_html"])
+                        recorded_flags = gr.HTML(initial["critical_flags_html"])
 
                 gr.HTML(f"<div class='ti-ab-line'>{AB_STATEMENT}</div>")
                 with gr.Row():
@@ -1087,24 +1652,53 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                         )
                     render_button = gr.Button("Render optional A/B audio locally")
 
-                case_outputs = [
-                    state,
-                    context,
-                    verbal,
-                    delivery,
-                    recorded_evaluation,
-                    raw_json,
-                    evaluation,
-                    evaluation_note,
-                    neutral_audio,
-                    planned_audio,
-                    audio_status,
-                    mapping_report,
-                ]
+                def switch_recorded_example_ui(
+                    example_name: str, selected_audio_root: str
+                ) -> tuple[Any, ...]:
+                    outputs = switch_recorded_example(example_name, selected_audio_root)
+                    next_state = outputs[0]
+                    speech_panel = (
+                        "<div class='ti-card'><h3>Speech Plan</h3>"
+                        + next_state["what_to_say_html"]
+                        + next_state["how_to_say_html"]
+                        + "</div>"
+                    )
+                    return (
+                        next_state,
+                        next_state["evaluation_state"],
+                        next_state["context_html"],
+                        gr.update(value=speech_panel, visible=True),
+                        radio_update(next_state["evaluation_state"]),
+                        next_state["evidence_trace_html"],
+                        next_state["critical_flags_html"],
+                        next_state["raw_json"],
+                        next_state["evaluation_rows"],
+                        next_state["evaluation_note"],
+                        next_state["neutral_audio"],
+                        next_state["planned_audio"],
+                        next_state["audio_status"],
+                        outputs[-1],
+                    )
+
                 example_picker.change(
-                    switch_recorded_example,
+                    switch_recorded_example_ui,
                     inputs=[example_picker, audio_root_box],
-                    outputs=case_outputs,
+                    outputs=[
+                        state,
+                        recorded_eval_state,
+                        context,
+                        speech_plan_panel,
+                        recorded_dimension,
+                        recorded_trace,
+                        recorded_flags,
+                        raw_json,
+                        evaluation,
+                        evaluation_note,
+                        neutral_audio,
+                        planned_audio,
+                        audio_status,
+                        mapping_report,
+                    ],
                 )
 
                 def showcase_badge_ui(example_name: str) -> Any:
@@ -1114,6 +1708,11 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                     showcase_badge_ui,
                     inputs=[example_picker],
                     outputs=[showcase_badge],
+                )
+                recorded_dimension.change(
+                    select_evidence_trace,
+                    inputs=[recorded_eval_state, recorded_dimension],
+                    outputs=[recorded_trace],
                 )
 
                 def render_ui(
@@ -1139,9 +1738,14 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                     outputs=[neutral_audio, planned_audio, audio_status],
                 )
 
-            with gr.Tab("Try your own scenario"):
+            with gr.Tab("Live Studio"):
                 custom_state = gr.State(None)
-                gr.Markdown("## Try your own scenario", elem_classes=["ti-section"])
+                custom_eval_state = gr.State(
+                    build_evaluation_workbench_state(
+                        None, None, None, unavailable_reason=EVALUATION_NOT_RUN_MESSAGE
+                    )
+                )
+                gr.Markdown("## Live Studio", elem_classes=["ti-section"])
                 with gr.Row():
                     with gr.Column():
                         custom_content = gr.Textbox(
@@ -1171,22 +1775,38 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                 load_showcase_button = gr.Button("Load showcase scenario")
                 custom_button = gr.Button("Generate with Hy3", variant="primary")
                 custom_status = gr.Markdown("")
-                custom_context = gr.Markdown("")
-                gr.Markdown(
-                    "## Generated Speech Plan", elem_classes=["ti-section"]
-                )
-                with gr.Row():
-                    with gr.Column(elem_classes=["ti-card"]):
-                        gr.Markdown("### What to say")
-                        custom_verbal = gr.Markdown("")
-                    with gr.Column(elem_classes=["ti-card"]):
-                        gr.Markdown("### How to say")
-                        custom_delivery = gr.Markdown("")
-                custom_audio_status = gr.Markdown(
-                    CUSTOM_AUDIO_MESSAGE, elem_classes=["ti-muted"]
-                )
-                evaluate_button = gr.Button("Evaluate this plan")
-                custom_evaluation = gr.Markdown("")
+                custom_context = gr.HTML("")
+                with gr.Row(elem_classes=["ti-workbench"]):
+                    with gr.Column(scale=5):
+                        custom_speech_plan = gr.HTML(
+                            "<div class='ti-card'><h3>Speech Plan</h3></div>"
+                        )
+                        custom_audio_status = gr.Markdown(
+                            CUSTOM_AUDIO_MESSAGE, elem_classes=["ti-muted"]
+                        )
+                    with gr.Column(scale=4):
+                        gr.Markdown("### Evaluation")
+                        evaluate_button = gr.Button("Evaluate this plan")
+                        custom_dimension = gr.Radio(
+                            choices=[],
+                            value=None,
+                            label="Live Evaluator v0.1 · Independent Judge",
+                            interactive=True,
+                            visible=False,
+                        )
+                        custom_trace = gr.HTML(
+                            render_evidence_trace(
+                                {
+                                    "available": False,
+                                    "reason": EVALUATION_NOT_RUN_MESSAGE,
+                                }
+                            )
+                        )
+                        custom_flags = gr.HTML(render_critical_flags(None))
+                        gr.Markdown(
+                            EVALUATOR_VALIDATION_NOTE, elem_classes=["ti-muted"]
+                        )
+
                 with gr.Accordion("Technical details", open=False):
                     custom_input_json = gr.Code(
                         value="",
@@ -1204,8 +1824,73 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                         label="Source metadata",
                     )
 
+                def generation_not_run_state() -> dict[str, Any]:
+                    return build_evaluation_workbench_state(
+                        None, None, None, unavailable_reason=EVALUATION_NOT_RUN_MESSAGE
+                    )
+
+                def generate_custom_workbench_ui(*args: Any) -> tuple[Any, ...]:
+                    outputs = generate_custom_ui(*args)
+                    next_state = outputs[0]
+                    eval_state = generation_not_run_state()
+                    if next_state is None:
+                        speech_panel = "<div class='ti-card'><h3>Speech Plan</h3></div>"
+                    else:
+                        speech_panel = (
+                            "<div class='ti-card'><h3>Speech Plan</h3>"
+                            + next_state["what_to_say_html"]
+                            + next_state["how_to_say_html"]
+                            + "</div>"
+                        )
+                    return (
+                        next_state,
+                        eval_state,
+                        outputs[1],
+                        outputs[2],
+                        speech_panel,
+                        outputs[5],
+                        hidden_radio_update(),
+                        eval_state["evidence_trace_html"],
+                        eval_state["critical_flags_html"],
+                        outputs[7],
+                        outputs[8],
+                        outputs[9],
+                    )
+
+                def evaluate_custom_workbench_ui(
+                    current_state: dict[str, Any] | None,
+                ) -> tuple[Any, ...]:
+                    eval_state = evaluate_custom_workbench_state(current_state)
+                    return (
+                        eval_state,
+                        radio_update(eval_state),
+                        eval_state["evidence_trace_html"],
+                        eval_state["critical_flags_html"],
+                    )
+
+                def clear_custom_workbench_ui() -> tuple[Any, ...]:
+                    eval_state = generation_not_run_state()
+                    return (
+                        None,
+                        eval_state,
+                        hidden_radio_update(),
+                        eval_state["evidence_trace_html"],
+                        eval_state["critical_flags_html"],
+                    )
+
+                def load_showcase_workbench_ui() -> tuple[Any, ...]:
+                    eval_state = generation_not_run_state()
+                    return (
+                        *load_showcase_scenario_fields(),
+                        None,
+                        eval_state,
+                        hidden_radio_update(),
+                        eval_state["evidence_trace_html"],
+                        eval_state["critical_flags_html"],
+                    )
+
                 load_showcase_button.click(
-                    load_showcase_scenario_ui,
+                    load_showcase_workbench_ui,
                     outputs=[
                         custom_content,
                         custom_scenario,
@@ -1215,12 +1900,15 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                         custom_affect,
                         custom_intent,
                         custom_state,
-                        custom_evaluation,
+                        custom_eval_state,
+                        custom_dimension,
+                        custom_trace,
+                        custom_flags,
                     ],
                 )
 
                 custom_button.click(
-                    generate_custom_ui,
+                    generate_custom_workbench_ui,
                     inputs=[
                         custom_content,
                         custom_scenario,
@@ -1232,12 +1920,14 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                     ],
                     outputs=[
                         custom_state,
+                        custom_eval_state,
                         custom_status,
                         custom_context,
-                        custom_verbal,
-                        custom_delivery,
+                        custom_speech_plan,
                         custom_audio_status,
-                        custom_evaluation,
+                        custom_dimension,
+                        custom_trace,
+                        custom_flags,
                         custom_input_json,
                         custom_plan_json,
                         custom_source_json,
@@ -1245,9 +1935,19 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                 )
 
                 evaluate_button.click(
-                    evaluate_custom_visual_state,
+                    evaluate_custom_workbench_ui,
                     inputs=[custom_state],
-                    outputs=[custom_evaluation],
+                    outputs=[
+                        custom_eval_state,
+                        custom_dimension,
+                        custom_trace,
+                        custom_flags,
+                    ],
+                )
+                custom_dimension.change(
+                    select_evidence_trace,
+                    inputs=[custom_eval_state, custom_dimension],
+                    outputs=[custom_trace],
                 )
 
                 custom_inputs = [
@@ -1261,8 +1961,14 @@ def build_gradio_app(*, audio_root: Path = DEFAULT_AUDIO_ROOT) -> Any:
                 ]
                 for custom_input in custom_inputs:
                     custom_input.change(
-                        clear_custom_evaluation_on_input_change,
-                        outputs=[custom_state, custom_evaluation],
+                        clear_custom_workbench_ui,
+                        outputs=[
+                            custom_state,
+                            custom_eval_state,
+                            custom_dimension,
+                            custom_trace,
+                            custom_flags,
+                        ],
                     )
 
     return app
@@ -1273,6 +1979,7 @@ __all__ = [
     "CUSTOM_DELIVERY_STATUS",
     "CUSTOM_EMPTY_DELIVERY_MESSAGE",
     "CUSTOM_EVALUATION_PLACEHOLDER",
+    "EVALUATION_NOT_RUN_MESSAGE",
     "CustomInputError",
     "DEFAULT_AUDIO_ROOT",
     "DEMO_CSS",
@@ -1280,20 +1987,36 @@ __all__ = [
     "PEDAGOGICAL_INTENTS",
     "PRIMARY_EXAMPLE",
     "PRIMARY_PROMPT_VERSION",
+    "PUBLIC_DEMO_ARTIFACT_VERSION",
+    "PUBLIC_DEMO_EVALUATOR_ARTIFACT_DIR",
     "REVIEWER_EXAMPLES",
     "SHOWCASE_BADGE",
     "SHOWCASE_SCENARIO_EXAMPLE",
+    "build_delivery_plan_view",
+    "build_evidence_trace",
     "build_custom_input",
+    "build_evaluation_workbench_state",
     "build_gradio_app",
+    "build_teaching_context_view",
+    "build_verbal_plan_view",
     "build_visual_state",
     "clear_custom_evaluation_on_input_change",
+    "classify_evidence_source",
+    "dimension_choices_for_artifact",
+    "evaluate_custom_workbench_state",
     "evaluate_custom_visual_state",
     "find_audio_pair",
     "generate_custom_ui",
     "generate_custom_visual_state",
+    "highlight_exact_text",
     "is_recommended_showcase",
     "load_showcase_scenario_fields",
     "load_showcase_scenario_ui",
+    "load_public_demo_evaluator_artifact",
+    "public_demo_evaluator_artifact_path",
+    "render_critical_flags",
+    "render_evidence_trace",
     "run_live_evaluation",
+    "select_evidence_trace",
     "switch_recorded_example",
 ]

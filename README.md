@@ -230,16 +230,44 @@ boundaries are in [docs/FAILURE_ANALYSIS.md](docs/FAILURE_ANALYSIS.md).
 
 ## Demo
 
-### Visual demo (recommended for Task 1)
+### Web App (React + FastAPI)
+
+The product-facing Task 1 web app uses React, TypeScript, Vite, Tailwind CSS,
+and FastAPI. The Explore page is public-first: recorded Speech Plans and
+recorded Evaluator v0.1 evidence are served from committed demo artifacts, not
+from git-ignored `results/`.
+
+Terminal 1:
+
+```bash
+.venv/bin/python scripts/run_web_api.py \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+Terminal 2:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+The Gradio demo remains available as a legacy research/demo interface.
+
+### Legacy Gradio visual demo
 
 The single-page app has two modes:
 
-- `Explore examples` uses existing recorded artifacts and makes no API call.
-- `Explore examples` shows the recorded Speech Plan, recorded Evaluator v0.1
-  result, and optional curated Qwen3-TTS A/B audio.
-- `Try your own scenario` builds a validated TeachIntent input and calls Hy3
-  once through the existing live generation pipeline. After generation, the
-  user may explicitly run the independent Evaluator v0.1 Judge on that plan.
+- `Explore` uses existing recorded artifacts and makes no API call. It shows
+  the recorded Speech Plan, recorded Evaluator v0.1 result, evidence trace,
+  and optional curated Qwen3-TTS A/B audio.
+- `Live Studio` builds a validated TeachIntent input and calls Hy3 once through
+  the existing live generation pipeline. After generation, the user may
+  explicitly run the independent Evaluator v0.1 Judge and inspect the same
+  evidence trace workbench.
   Live generation requires `HY3_API_KEY`; live evaluation requires
   `OPENROUTER_API_KEY` in local `.env`.
 
