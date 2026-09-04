@@ -41,6 +41,17 @@ VALID_GENERATE_REQUEST = {
     "pedagogical_intent": "corrective_feedback",
 }
 
+VALID_COMPARE_REQUEST = {
+    "content_anchor": "加速度描述速度大小或方向随时间的变化。",
+    "teaching_scenario": "学生混淆速度大小不变和零加速度。",
+    "learner_utterance": "速度大小没变，所以加速度为0。",
+    "learner_level": "high_school",
+    "knowledge_state": "misconception",
+    "affective_state": "slightly_frustrated",
+    "left_intent": "corrective_feedback",
+    "right_intent": "scaffolding",
+}
+
 VALID_PLAN = {
     "schema_version": "1.0.0-rc.3",
     "verbal_plan": {
@@ -113,10 +124,13 @@ def _write_public_voice_fixture(
     )
 
 
-def _generation_result(raw_response: str = "TRUE RAW") -> SpeechPlanGenerationResult:
+def _generation_result(
+    raw_response: str = "TRUE RAW",
+    plan_doc: dict | None = None,
+) -> SpeechPlanGenerationResult:
     return SpeechPlanGenerationResult(
         speech_plan=None,
-        plan_doc=VALID_PLAN,
+        plan_doc=plan_doc or VALID_PLAN,
         prompt_system="must not leak",
         prompt_user="must not leak",
         prompt_version="v0.2",
@@ -516,6 +530,153 @@ def test_repeated_evaluate_endpoint_uses_cached_evaluation(
     assert first.status_code == 200
     assert second.status_code == 200
     assert calls == 1
+
+
+def test_compare_intents_endpoint_returns_safe_controlled_comparison(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict] = []
+
+    def fake_runner(input_doc: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        calls.append(input_doc)
+        plan = {
+            **VALID_PLAN,
+            "verbal_plan": {
+                "segments": [
+                    {
+                        "segment_id": "seg_01",
+                        "text": f"{input_doc['pedagogical_intent']['primary']} plan",
+                    }
+                ]
+            },
+            "delivery_plan": {}
+            if len(calls) == 2
+            else {"global": {"attitudinal_tone": "安抚但纠正"}},
+        }
+        return _generation_result(raw_response=f"RAW {len(calls)}", plan_doc=plan)
+
+    monkeypatch.setattr(app_service, "_default_generation_runner", fake_runner)
+
+    response = client.post("/api/compare-intents", json=VALID_COMPARE_REQUEST)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(calls) == 2
+    assert calls[0]["pedagogical_intent"]["primary"] == "corrective_feedback"
+    assert calls[1]["pedagogical_intent"]["primary"] == "scaffolding"
+    left_without_intent = app_service.strip_primary_intent(calls[0])
+    right_without_intent = app_service.strip_primary_intent(calls[1])
+    assert left_without_intent == right_without_intent
+    assert payload["mode"] == "intent_compare"
+    assert payload["comparison"]["all_other_input_fields_equal"] is True
+    assert payload["comparison"]["same_prompt_version"] is True
+    assert payload["comparison"]["same_requested_model"] is True
+    assert payload["structural_contrast"]["delivery_decision"] == {
+        "left": "selective",
+        "right": "default",
+    }
+    text = json.dumps(payload, ensure_ascii=False)
+    assert "RAW 1" not in text
+    assert "raw_response" not in text
+    for forbidden in FORBIDDEN:
+        assert forbidden not in text
+
+
+def test_compare_same_intent_rejected_before_hy3(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def forbidden(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal called
+        called = True
+        return _generation_result()
+
+    monkeypatch.setattr(app_service, "_default_generation_runner", forbidden)
+
+    response = client.post(
+        "/api/compare-intents",
+        json={**VALID_COMPARE_REQUEST, "right_intent": "corrective_feedback"},
+    )
+
+    assert response.status_code == 400
+    assert called is False
+    assert response.json()["detail"]["error"]["message"] == (
+        "Choose two different pedagogical intents."
+    )
+
+
+def test_compare_invalid_input_rejected_before_hy3(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def forbidden(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal called
+        called = True
+        return _generation_result()
+
+    monkeypatch.setattr(app_service, "_default_generation_runner", forbidden)
+
+    response = client.post(
+        "/api/compare-intents",
+        json={**VALID_COMPARE_REQUEST, "content_anchor": ""},
+    )
+
+    assert response.status_code == 400
+    assert called is False
+    assert response.json()["detail"]["error"]["type"] == "input_validation_error"
+
+
+def test_compare_generation_failure_is_safe_and_incomplete(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def second_fails(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("Authorization: Bearer sk-secret /Users/person")
+        return _generation_result()
+
+    monkeypatch.setattr(app_service, "_default_generation_runner", second_fails)
+
+    response = client.post("/api/compare-intents", json=VALID_COMPARE_REQUEST)
+
+    assert response.status_code == 502
+    assert calls == 2
+    payload = response.json()
+    assert payload["detail"]["error"]["type"] == "comparison_generation_error"
+    assert "Right generation failed" in payload["detail"]["error"]["message"]
+    text = json.dumps(payload, ensure_ascii=False)
+    for forbidden in FORBIDDEN:
+        assert forbidden not in text
+
+
+def test_compare_endpoint_does_not_use_judge(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        app_service,
+        "_default_generation_runner",
+        lambda _input, _prompt: _generation_result(),
+    )
+    monkeypatch.setattr(
+        app_service,
+        "_default_evaluation_runner",
+        lambda *_args, **_kwargs: pytest.fail("Judge must not be used"),
+    )
+
+    response = client.post("/api/compare-intents", json=VALID_COMPARE_REQUEST)
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "intent_compare"
 
 
 def test_live_endpoints_do_not_modify_results_or_public_artifacts(

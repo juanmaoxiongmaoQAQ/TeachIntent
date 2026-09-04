@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("shows Explore technical details and Live Studio entry form", async () => {
+  it("shows Explore, Live Studio, and Intent Compare navigation", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -110,5 +110,10 @@ describe("App", () => {
 
     expect(screen.getByText("Build a teaching scenario")).toBeInTheDocument();
     expect(screen.getByText("Generate with Hy3")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Intent Compare" }));
+
+    expect(screen.getByText("Build one teaching situation")).toBeInTheDocument();
+    expect(screen.getByText("Compare intents")).toBeInTheDocument();
   });
 });

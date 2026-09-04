@@ -9,11 +9,13 @@ import { ContextField } from "./ContextField";
 interface TeachingContextPanelProps {
   input: TeachIntentInput;
   evidenceTargets: EvidenceTarget[];
+  hidePedagogicalIntent?: boolean;
 }
 
 export function TeachingContextPanel({
   input,
   evidenceTargets,
+  hidePedagogicalIntent = false,
 }: TeachingContextPanelProps) {
   return (
     <Panel title="Teaching Context">
@@ -76,14 +78,16 @@ export function TeachingContextPanel({
             />
           </div>
         </div>
-        <ContextField
-          label="Pedagogical intent"
-          value={input.pedagogical_intent.primary}
-          evidenceTexts={evidenceTextsForContextField(
-            evidenceTargets,
-            "pedagogical_intent.primary",
-          )}
-        />
+        {hidePedagogicalIntent ? null : (
+          <ContextField
+            label="Pedagogical intent"
+            value={input.pedagogical_intent.primary}
+            evidenceTexts={evidenceTextsForContextField(
+              evidenceTargets,
+              "pedagogical_intent.primary",
+            )}
+          />
+        )}
       </div>
     </Panel>
   );

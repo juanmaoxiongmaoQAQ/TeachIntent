@@ -1,6 +1,6 @@
 import { cn } from "../../lib/utils";
 
-type Page = "explore" | "live";
+type Page = "explore" | "live" | "compare";
 
 interface AppNavigationProps {
   current: Page;
@@ -11,6 +11,7 @@ export function AppNavigation({ current, onChange }: AppNavigationProps) {
   const items: Array<{ id: Page; label: string }> = [
     { id: "explore", label: "Explore" },
     { id: "live", label: "Live Studio" },
+    { id: "compare", label: "Intent Compare" },
   ];
   return (
     <nav className="mx-auto flex max-w-[1400px] gap-2 px-6 py-4">

@@ -14,6 +14,8 @@ from .web_models import (
     ExampleSummary,
     GenerateRequest,
     HealthResponse,
+    IntentCompareRequest,
+    IntentCompareResponse,
     LiveEvaluationResponse,
     LiveGenerationResponse,
     WorkbenchResponse,
@@ -83,6 +85,29 @@ def create_app() -> FastAPI:
                     "error": {
                         "type": "unknown_session",
                         "message": app_service.sanitize_error_summary(exc),
+                    }
+                },
+            ) from exc
+
+    @app.post("/api/compare-intents", response_model=IntentCompareResponse)
+    def compare_intents(request: IntentCompareRequest) -> IntentCompareResponse:
+        try:
+            return app_service.compare_live_intents(request)
+        except app_service.IntentCompareError as exc:
+            status_code = (
+                400
+                if exc.failure_type
+                in {"compare_validation_error", "input_validation_error"}
+                else 502
+                if exc.failure_type == "comparison_generation_error"
+                else 500
+            )
+            raise HTTPException(
+                status_code=status_code,
+                detail={
+                    "error": {
+                        "type": exc.failure_type,
+                        "message": exc.summary,
                     }
                 },
             ) from exc

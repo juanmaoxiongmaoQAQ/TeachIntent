@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
+from copy import deepcopy
 import json
 from pathlib import Path
 import re
@@ -36,8 +37,13 @@ from .web_models import (
     ExampleSummary,
     GenerateRequest,
     GenerationMetadata,
+    CompareGenerationResult,
+    ComparisonInvariants,
+    IntentCompareRequest,
+    IntentCompareResponse,
     LiveEvaluationResponse,
     LiveGenerationResponse,
+    StructuralContrast,
     VoiceCondition,
     VoiceRealizationResponse,
     WorkbenchResponse,
@@ -92,6 +98,15 @@ class LiveSessionNotFound(AppServiceError):
 
 class LiveGenerationError(AppServiceError):
     """Raised when live generation fails with a sanitized summary."""
+
+    def __init__(self, failure_type: str, summary: str):
+        super().__init__(summary)
+        self.failure_type = failure_type
+        self.summary = summary
+
+
+class IntentCompareError(AppServiceError):
+    """Raised when Intent Compare cannot produce a complete safe comparison."""
 
     def __init__(self, failure_type: str, summary: str):
         super().__init__(summary)
@@ -539,6 +554,69 @@ def build_live_input_doc(request: GenerateRequest) -> dict[str, Any]:
     return input_doc
 
 
+def build_compare_inputs(
+    request: IntentCompareRequest,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build two canonical inputs that differ only by pedagogical intent."""
+    if request.left_intent == request.right_intent:
+        raise IntentCompareError(
+            "compare_validation_error",
+            "Choose two different pedagogical intents.",
+        )
+    base_payload = request.model_dump()
+    common = {
+        "content_anchor": base_payload["content_anchor"],
+        "teaching_scenario": base_payload["teaching_scenario"],
+        "learner_utterance": base_payload["learner_utterance"],
+        "learner_level": base_payload["learner_level"],
+        "knowledge_state": base_payload["knowledge_state"],
+        "affective_state": base_payload["affective_state"],
+    }
+    left_input = build_live_input_doc(
+        GenerateRequest.model_validate(
+            {**common, "pedagogical_intent": request.left_intent}
+        )
+    )
+    right_input = build_live_input_doc(
+        GenerateRequest.model_validate(
+            {**common, "pedagogical_intent": request.right_intent}
+        )
+    )
+    validate_compare_invariants(left_input, right_input)
+    return left_input, right_input
+
+
+def strip_primary_intent(input_doc: dict[str, Any]) -> dict[str, Any]:
+    """Return input without the only field Intent Compare is allowed to vary."""
+    stripped = deepcopy(input_doc)
+    stripped["pedagogical_intent"]["primary"] = None
+    return stripped
+
+
+def validate_compare_invariants(
+    left_input: dict[str, Any],
+    right_input: dict[str, Any],
+) -> None:
+    """Fail closed if any non-intent input field differs."""
+    checks = (
+        left_input.get("schema_version") == right_input.get("schema_version"),
+        left_input.get("output_language") == right_input.get("output_language"),
+        left_input.get("instructional_content")
+        == right_input.get("instructional_content"),
+        left_input.get("pedagogical_context")
+        == right_input.get("pedagogical_context"),
+        left_input.get("learner") == right_input.get("learner"),
+        strip_primary_intent(left_input) == strip_primary_intent(right_input),
+        left_input.get("pedagogical_intent", {}).get("primary")
+        != right_input.get("pedagogical_intent", {}).get("primary"),
+    )
+    if not all(checks):
+        raise IntentCompareError(
+            "compare_invariant_error",
+            "Internal comparison invariant failed: only pedagogical_intent.primary may differ.",
+        )
+
+
 def validate_live_input_doc(input_doc: dict[str, Any]) -> None:
     errors = iter_input_errors(input_doc)
     if errors:
@@ -551,6 +629,15 @@ def validate_live_input_doc(input_doc: dict[str, Any]) -> None:
             "input_validation_error",
             sanitize_error_summary(exc),
         ) from exc
+
+
+def _generation_metadata(result: SpeechPlanGenerationResult) -> GenerationMetadata:
+    return GenerationMetadata(
+        prompt_version=result.prompt_version,
+        requested_model=result.requested_model,
+        reported_model=result.reported_model,
+        duration_seconds=round(result.duration_seconds, 3),
+    )
 
 
 def _default_generation_runner(
@@ -583,12 +670,7 @@ def generate_live_workbench(
             sanitize_error_summary(exc),
         ) from exc
 
-    generation = GenerationMetadata(
-        prompt_version=result.prompt_version,
-        requested_model=result.requested_model,
-        reported_model=result.reported_model,
-        duration_seconds=round(result.duration_seconds, 3),
-    )
+    generation = _generation_metadata(result)
     session = LiveSession(
         input_doc=input_doc,
         plan_doc=result.plan_doc,
@@ -602,6 +684,158 @@ def generate_live_workbench(
         input=input_doc,
         speech_plan=result.plan_doc,
         generation=generation,
+    )
+
+
+def _verbal_text(plan_doc: dict[str, Any]) -> str:
+    segments = plan_doc.get("verbal_plan", {}).get("segments", [])
+    if not isinstance(segments, list):
+        return ""
+    return " ".join(
+        str(segment.get("text", ""))
+        for segment in segments
+        if isinstance(segment, dict)
+    )
+
+
+def _delivery_mode(delivery_plan: Any) -> Literal["default", "selective"]:
+    return (
+        "selective"
+        if isinstance(delivery_plan, dict) and len(delivery_plan) > 0
+        else "default"
+    )
+
+
+def _flatten_delivery_control_paths(value: Any, prefix: str = "delivery_plan") -> list[str]:
+    if not isinstance(value, dict) or len(value) == 0:
+        return []
+    paths: list[str] = []
+
+    def visit(current: Any, path: str) -> None:
+        if isinstance(current, dict):
+            for key, child in current.items():
+                if key == "segment_id":
+                    continue
+                visit(child, f"{path}.{key}")
+        elif isinstance(current, list):
+            for index, child in enumerate(current):
+                visit(child, f"{path}[{index}]")
+        else:
+            paths.append(path)
+
+    visit(value, prefix)
+    return paths
+
+
+def build_structural_contrast(
+    left_plan: dict[str, Any],
+    right_plan: dict[str, Any],
+) -> StructuralContrast:
+    """Build deterministic plan contrast without semantic scoring."""
+    left_segments = left_plan.get("verbal_plan", {}).get("segments", [])
+    right_segments = right_plan.get("verbal_plan", {}).get("segments", [])
+    left_delivery = left_plan.get("delivery_plan", {})
+    right_delivery = right_plan.get("delivery_plan", {})
+    return StructuralContrast(
+        verbal_segments={
+            "left": len(left_segments) if isinstance(left_segments, list) else 0,
+            "right": len(right_segments) if isinstance(right_segments, list) else 0,
+        },
+        delivery_decision={
+            "left": _delivery_mode(left_delivery),
+            "right": _delivery_mode(right_delivery),
+        },
+        verbal_text_identical=_verbal_text(left_plan) == _verbal_text(right_plan),
+        delivery_plan_identical=left_delivery == right_delivery,
+        left_control_paths=_flatten_delivery_control_paths(left_delivery),
+        right_control_paths=_flatten_delivery_control_paths(right_delivery),
+    )
+
+
+def _base_context_from_input(input_doc: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": input_doc["schema_version"],
+        "output_language": input_doc["output_language"],
+        "instructional_content": input_doc["instructional_content"],
+        "pedagogical_context": input_doc["pedagogical_context"],
+        "learner": input_doc["learner"],
+    }
+
+
+def compare_live_intents(
+    request: IntentCompareRequest,
+    *,
+    generation_runner: GenerationRunner | None = None,
+) -> IntentCompareResponse:
+    """Generate two Speech Plans while holding all non-intent input constant."""
+    left_input, right_input = build_compare_inputs(request)
+    try:
+        validate_live_input_doc(left_input)
+        validate_live_input_doc(right_input)
+    except LiveGenerationError as exc:
+        raise IntentCompareError(exc.failure_type, exc.summary) from exc
+
+    runner = generation_runner or _default_generation_runner
+    try:
+        left_result = runner(left_input, DEFAULT_PROMPT_VERSION)
+    except Exception as exc:
+        raise IntentCompareError(
+            "comparison_generation_error",
+            f"Left generation failed: {sanitize_error_summary(exc)}",
+        ) from exc
+    try:
+        right_result = runner(right_input, DEFAULT_PROMPT_VERSION)
+    except Exception as exc:
+        raise IntentCompareError(
+            "comparison_generation_error",
+            f"Right generation failed: {sanitize_error_summary(exc)}",
+        ) from exc
+
+    validate_compare_invariants(left_input, right_input)
+    left_generation = _generation_metadata(left_result)
+    right_generation = _generation_metadata(right_result)
+    comparison = ComparisonInvariants(
+        changed_input_field="input.pedagogical_intent.primary",
+        left_intent=request.left_intent,
+        right_intent=request.right_intent,
+        all_other_input_fields_equal=(
+            strip_primary_intent(left_input) == strip_primary_intent(right_input)
+        ),
+        prompt_version=DEFAULT_PROMPT_VERSION,
+        same_prompt_version=(
+            left_generation.prompt_version == right_generation.prompt_version
+        ),
+        same_requested_model=(
+            left_generation.requested_model == right_generation.requested_model
+        ),
+    )
+    if not (
+        comparison.all_other_input_fields_equal
+        and comparison.same_prompt_version
+        and comparison.same_requested_model
+    ):
+        raise IntentCompareError(
+            "compare_invariant_error",
+            "Internal comparison invariant failed before response construction.",
+        )
+    return IntentCompareResponse(
+        mode="intent_compare",
+        comparison=comparison,
+        base_context=_base_context_from_input(left_input),
+        left=CompareGenerationResult(
+            input=left_input,
+            speech_plan=left_result.plan_doc,
+            generation=left_generation,
+        ),
+        right=CompareGenerationResult(
+            input=right_input,
+            speech_plan=right_result.plan_doc,
+            generation=right_generation,
+        ),
+        structural_contrast=build_structural_contrast(
+            left_result.plan_doc,
+            right_result.plan_doc,
+        ),
     )
 
 
@@ -730,10 +964,14 @@ __all__ = [
     "LiveSession",
     "LiveSessionNotFound",
     "LiveSessionStore",
+    "IntentCompareError",
     "VoiceArtifactUnavailable",
+    "build_compare_inputs",
     "build_recorded_workbench",
     "build_live_input_doc",
+    "build_structural_contrast",
     "classify_evidence_source",
+    "compare_live_intents",
     "evaluate_live_session",
     "extract_dimension_evidence",
     "generate_live_workbench",

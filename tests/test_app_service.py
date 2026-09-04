@@ -9,7 +9,7 @@ import pytest
 from teachintent import app_service
 from teachintent.evaluator import DIMENSION_IDS
 from teachintent.generator import SpeechPlanGenerationResult
-from teachintent.web_models import GenerateRequest
+from teachintent.web_models import GenerateRequest, IntentCompareRequest
 
 
 FORBIDDEN = (
@@ -120,15 +120,34 @@ def _generate_request(**overrides: object) -> GenerateRequest:
     return GenerateRequest.model_validate(payload)
 
 
-def _generation_result(raw_response: str = '{"ok": true}') -> SpeechPlanGenerationResult:
+def _compare_request(**overrides: object) -> IntentCompareRequest:
+    payload = {
+        "content_anchor": "加速度描述速度大小或方向随时间的变化。",
+        "teaching_scenario": "学生混淆速度大小不变和零加速度。",
+        "learner_utterance": "速度大小没变，所以加速度为0。",
+        "learner_level": "high_school",
+        "knowledge_state": "misconception",
+        "affective_state": "slightly_frustrated",
+        "left_intent": "corrective_feedback",
+        "right_intent": "scaffolding",
+    }
+    payload.update(overrides)
+    return IntentCompareRequest.model_validate(payload)
+
+
+def _generation_result(
+    raw_response: str = '{"ok": true}',
+    plan_doc: dict | None = None,
+    requested_model: str = "tencent/hy3",
+) -> SpeechPlanGenerationResult:
     return SpeechPlanGenerationResult(
         speech_plan=None,
-        plan_doc=VALID_PLAN,
+        plan_doc=plan_doc or VALID_PLAN,
         prompt_system="must not leak",
         prompt_user="must not leak",
         prompt_version="v0.2",
         raw_response=raw_response,
-        requested_model="tencent/hy3",
+        requested_model=requested_model,
         reported_model="tencent/hy3",
         started_at="2026-09-04T00:00:00+00:00",
         duration_seconds=0.1234,
@@ -519,6 +538,193 @@ def test_repeated_evaluate_returns_cached_result_without_second_judge_call() -> 
 
     assert calls == 1
     assert first.evaluation == second.evaluation
+
+
+def test_compare_live_intents_calls_generator_twice_and_controls_only_intent() -> None:
+    calls: list[dict] = []
+    left_plan = {
+        "schema_version": "1.0.0-rc.3",
+        "verbal_plan": {
+            "segments": [{"segment_id": "seg_01", "text": "纠正这个判断。"}]
+        },
+        "delivery_plan": {"global": {"attitudinal_tone": "安抚但纠正"}},
+    }
+    right_plan = {
+        "schema_version": "1.0.0-rc.3",
+        "verbal_plan": {
+            "segments": [
+                {"segment_id": "seg_01", "text": "先拆成一个小问题。"},
+                {"segment_id": "seg_02", "text": "请学生判断方向是否变化。"},
+            ]
+        },
+        "delivery_plan": {},
+    }
+
+    def fake_runner(input_doc: dict, prompt_version: str) -> SpeechPlanGenerationResult:
+        calls.append(input_doc)
+        plan = left_plan if len(calls) == 1 else right_plan
+        return _generation_result(
+            raw_response=f"RAW {len(calls)}",
+            plan_doc=plan,
+        )
+
+    response = app_service.compare_live_intents(
+        _compare_request(),
+        generation_runner=fake_runner,
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["pedagogical_intent"]["primary"] == "corrective_feedback"
+    assert calls[1]["pedagogical_intent"]["primary"] == "scaffolding"
+    assert app_service.strip_primary_intent(calls[0]) == app_service.strip_primary_intent(
+        calls[1]
+    )
+    assert response.mode == "intent_compare"
+    assert response.comparison.all_other_input_fields_equal is True
+    assert response.comparison.same_prompt_version is True
+    assert response.comparison.same_requested_model is True
+    assert response.left.speech_plan == left_plan
+    assert response.right.speech_plan == right_plan
+    text = json.dumps(response.model_dump(), ensure_ascii=False)
+    assert "RAW 1" not in text
+    assert "RAW 2" not in text
+    assert "raw_response" not in text
+
+
+def test_compare_same_intent_rejected_before_generation() -> None:
+    called = False
+
+    def forbidden(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal called
+        called = True
+        return _generation_result()
+
+    with pytest.raises(app_service.IntentCompareError, match="different"):
+        app_service.compare_live_intents(
+            _compare_request(right_intent="corrective_feedback"),
+            generation_runner=forbidden,
+        )
+    assert called is False
+
+
+def test_compare_invalid_input_rejected_before_generation() -> None:
+    called = False
+
+    def forbidden(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal called
+        called = True
+        return _generation_result()
+
+    with pytest.raises(app_service.IntentCompareError) as exc_info:
+        app_service.compare_live_intents(
+            _compare_request(content_anchor=""),
+            generation_runner=forbidden,
+        )
+    assert exc_info.value.failure_type == "input_validation_error"
+    assert called is False
+
+
+def test_compare_generation_failures_are_safe_and_complete_only() -> None:
+    def first_fails(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        raise RuntimeError("Bearer sk-secret /Users/person/.env")
+
+    with pytest.raises(app_service.IntentCompareError) as first:
+        app_service.compare_live_intents(
+            _compare_request(),
+            generation_runner=first_fails,
+        )
+    assert first.value.failure_type == "comparison_generation_error"
+    assert "Left generation failed" in first.value.summary
+    assert "Bearer sk-secret" not in first.value.summary
+    assert "/Users/" not in first.value.summary
+
+    calls = 0
+
+    def second_fails(_input: dict, _prompt: str) -> SpeechPlanGenerationResult:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("HY3_API_KEY=secret /mnt/provider")
+        return _generation_result()
+
+    with pytest.raises(app_service.IntentCompareError) as second:
+        app_service.compare_live_intents(
+            _compare_request(),
+            generation_runner=second_fails,
+        )
+    assert calls == 2
+    assert "Right generation failed" in second.value.summary
+    assert "HY3_API_KEY" not in second.value.summary
+    assert "/mnt/" not in second.value.summary
+
+
+def test_compare_structural_contrast_handles_global_segment_and_empty_delivery() -> None:
+    left_plan = {
+        "schema_version": "1.0.0-rc.3",
+        "verbal_plan": {
+            "segments": [{"segment_id": "seg_01", "text": "左侧文本。"}]
+        },
+        "delivery_plan": {
+            "global": {
+                "attitudinal_tone": "reassuring",
+                "prosody": {"speaking_rate": "slow"},
+            },
+            "segment_overrides": [
+                {
+                    "segment_id": "seg_01",
+                    "prominence_targets": [{"text": "左侧", "level": "moderate"}],
+                }
+            ],
+        },
+    }
+    right_plan = {
+        "schema_version": "1.0.0-rc.3",
+        "verbal_plan": {
+            "segments": [{"segment_id": "seg_01", "text": "右侧文本。"}]
+        },
+        "delivery_plan": {},
+    }
+
+    contrast = app_service.build_structural_contrast(left_plan, right_plan)
+
+    assert contrast.verbal_segments == {"left": 1, "right": 1}
+    assert contrast.delivery_decision == {"left": "selective", "right": "default"}
+    assert contrast.verbal_text_identical is False
+    assert contrast.delivery_plan_identical is False
+    assert contrast.left_control_paths == [
+        "delivery_plan.global.attitudinal_tone",
+        "delivery_plan.global.prosody.speaking_rate",
+        "delivery_plan.segment_overrides[0].prominence_targets[0].text",
+        "delivery_plan.segment_overrides[0].prominence_targets[0].level",
+    ]
+    assert contrast.right_control_paths == []
+
+
+def test_compare_does_not_use_judge_tts_or_write_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tracked = sorted(
+        path
+        for root in (Path("public_demo"), Path("public_results"), Path("results"))
+        if root.exists()
+        for path in root.rglob("*")
+        if path.is_file()
+    )
+    before = {path: path.stat().st_mtime_ns for path in tracked}
+    monkeypatch.setattr(
+        app_service,
+        "_default_evaluation_runner",
+        lambda *_args, **_kwargs: pytest.fail("Judge must not be used"),
+    )
+
+    response = app_service.compare_live_intents(
+        _compare_request(),
+        generation_runner=lambda _input, _prompt: _generation_result(),
+    )
+
+    assert response.mode == "intent_compare"
+    after = {path: path.stat().st_mtime_ns for path in tracked}
+    assert before == after
 
 
 def test_voice_realization_available_from_public_demo_only(

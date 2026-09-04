@@ -245,6 +245,11 @@ from git-ignored `results/`.
   explicitly run the independent frozen Evaluator v0.1 Judge. Live generation
   requires `HY3_API_KEY`; live evaluation requires `OPENROUTER_API_KEY` in
   local `.env`. Live Studio does not generate TTS.
+- `Intent Compare` holds the same teaching context constant, changes only two
+  selected pedagogical intents, runs two user-triggered Hy3 generations, and
+  shows a deterministic structural comparison of the resulting Speech Plans.
+  It does not call the Judge or generate TTS. This is an application-level
+  controlled input comparison, not a statistical experiment or causal claim.
 
 Terminal 1:
 

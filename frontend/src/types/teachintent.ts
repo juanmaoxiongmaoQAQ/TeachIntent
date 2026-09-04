@@ -226,6 +226,17 @@ export interface GenerateRequest {
   pedagogical_intent: PedagogicalIntent;
 }
 
+export interface IntentCompareRequest {
+  content_anchor: string;
+  teaching_scenario: string;
+  learner_utterance?: string | null;
+  learner_level: string;
+  knowledge_state: string;
+  affective_state?: string | null;
+  left_intent: PedagogicalIntent;
+  right_intent: PedagogicalIntent;
+}
+
 export interface GenerationMetadata {
   prompt_version: string;
   requested_model: string;
@@ -249,6 +260,46 @@ export interface EvaluateRequest {
 export interface LiveEvaluationResponse {
   session_id: string;
   evaluation: EvaluationArtifact;
+}
+
+export interface ComparisonInvariants {
+  changed_input_field: "input.pedagogical_intent.primary";
+  left_intent: PedagogicalIntent;
+  right_intent: PedagogicalIntent;
+  all_other_input_fields_equal: boolean;
+  prompt_version: string;
+  same_prompt_version: boolean;
+  same_requested_model: boolean;
+}
+
+export interface CompareGenerationResult {
+  input: TeachIntentInput;
+  speech_plan: SpeechPlan;
+  generation: GenerationMetadata;
+}
+
+export interface StructuralContrast {
+  verbal_segments: {
+    left: number;
+    right: number;
+  };
+  delivery_decision: {
+    left: "default" | "selective";
+    right: "default" | "selective";
+  };
+  verbal_text_identical: boolean;
+  delivery_plan_identical: boolean;
+  left_control_paths: string[];
+  right_control_paths: string[];
+}
+
+export interface IntentCompareResponse {
+  mode: "intent_compare";
+  comparison: ComparisonInvariants;
+  base_context: Omit<TeachIntentInput, "pedagogical_intent">;
+  left: CompareGenerationResult;
+  right: CompareGenerationResult;
+  structural_contrast: StructuralContrast;
 }
 
 export interface HealthResponse {

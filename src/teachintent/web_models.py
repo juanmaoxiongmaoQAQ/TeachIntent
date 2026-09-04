@@ -103,6 +103,16 @@ class HealthResponse(BaseModel):
     application: str
 
 
+PedagogicalIntent = Literal[
+    "elicitation",
+    "scaffolding",
+    "explanation",
+    "corrective_feedback",
+    "supportive_feedback",
+    "extension",
+]
+
+
 class GenerateRequest(BaseModel):
     content_anchor: str
     teaching_scenario: str
@@ -110,14 +120,7 @@ class GenerateRequest(BaseModel):
     learner_level: str
     knowledge_state: str
     affective_state: str | None = None
-    pedagogical_intent: Literal[
-        "elicitation",
-        "scaffolding",
-        "explanation",
-        "corrective_feedback",
-        "supportive_feedback",
-        "extension",
-    ]
+    pedagogical_intent: PedagogicalIntent
 
 
 class GenerationMetadata(BaseModel):
@@ -143,6 +146,51 @@ class EvaluateRequest(BaseModel):
 class LiveEvaluationResponse(BaseModel):
     session_id: str
     evaluation: EvaluationResponse
+
+
+class IntentCompareRequest(BaseModel):
+    content_anchor: str
+    teaching_scenario: str
+    learner_utterance: str | None = None
+    learner_level: str
+    knowledge_state: str
+    affective_state: str | None = None
+    left_intent: PedagogicalIntent
+    right_intent: PedagogicalIntent
+
+
+class ComparisonInvariants(BaseModel):
+    changed_input_field: Literal["input.pedagogical_intent.primary"]
+    left_intent: PedagogicalIntent
+    right_intent: PedagogicalIntent
+    all_other_input_fields_equal: bool
+    prompt_version: str
+    same_prompt_version: bool
+    same_requested_model: bool
+
+
+class CompareGenerationResult(BaseModel):
+    input: dict[str, Any]
+    speech_plan: dict[str, Any]
+    generation: GenerationMetadata
+
+
+class StructuralContrast(BaseModel):
+    verbal_segments: dict[str, int]
+    delivery_decision: dict[str, Literal["default", "selective"]]
+    verbal_text_identical: bool
+    delivery_plan_identical: bool
+    left_control_paths: list[str]
+    right_control_paths: list[str]
+
+
+class IntentCompareResponse(BaseModel):
+    mode: Literal["intent_compare"]
+    comparison: ComparisonInvariants
+    base_context: dict[str, Any]
+    left: CompareGenerationResult
+    right: CompareGenerationResult
+    structural_contrast: StructuralContrast
 
 
 class ErrorDetail(BaseModel):

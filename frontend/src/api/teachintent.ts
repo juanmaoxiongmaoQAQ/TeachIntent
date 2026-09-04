@@ -3,6 +3,8 @@ import type {
   EvaluateRequest,
   ExampleSummary,
   GenerateRequest,
+  IntentCompareRequest,
+  IntentCompareResponse,
   LiveEvaluationResponse,
   LiveGenerationResponse,
   WorkbenchResponse,
@@ -50,4 +52,10 @@ export function evaluateSpeechPlan(
   request: EvaluateRequest,
 ): Promise<LiveEvaluationResponse> {
   return postJson<LiveEvaluationResponse>("/api/evaluate", request);
+}
+
+export function compareIntents(
+  request: IntentCompareRequest,
+): Promise<IntentCompareResponse> {
+  return postJson<IntentCompareResponse>("/api/compare-intents", request);
 }
