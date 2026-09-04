@@ -35,6 +35,8 @@ PROMPT_VERSION = "v0.2"
 PROMPT_DIR = "v0_2"
 PUBLIC_ARTIFACT_VERSION = "1.0"
 MAX_WAV_BYTES = 20 * 1024 * 1024
+CANONICAL_PUBLIC_MODEL_ID = DEFAULT_QWEN3_TTS_MODEL
+CANONICAL_CHECKPOINT_BASENAME = "Qwen3-TTS-12Hz-1.7B-CustomVoice"
 FORBIDDEN_PUBLIC_TEXT = (
     "/Users/",
     "/mnt/",
@@ -141,6 +143,30 @@ def _seed(manifest: dict[str, Any]) -> int:
     raise VoiceExportError("Source render manifest has no seed")
 
 
+def normalize_model_reference(model_reference: str) -> tuple[str, dict[str, str]]:
+    """Normalize a source model reference without claiming weight identity.
+
+    Historical renders may record either the canonical public model id or a
+    local checkpoint path. For local paths, only the final checkpoint directory
+    name is public and validated.
+    """
+    if model_reference == CANONICAL_PUBLIC_MODEL_ID:
+        return CANONICAL_PUBLIC_MODEL_ID, {
+            "source_reference_type": "canonical_model_id",
+            "source_basename": CANONICAL_CHECKPOINT_BASENAME,
+            "normalized_model_id": CANONICAL_PUBLIC_MODEL_ID,
+        }
+    if model_reference.startswith("/"):
+        source_basename = Path(model_reference).name
+        if source_basename == CANONICAL_CHECKPOINT_BASENAME:
+            return CANONICAL_PUBLIC_MODEL_ID, {
+                "source_reference_type": "local_checkpoint",
+                "source_basename": source_basename,
+                "normalized_model_id": CANONICAL_PUBLIC_MODEL_ID,
+            }
+    raise VoiceExportError(f"Unexpected Qwen3-TTS model reference: {model_reference}")
+
+
 def _condition_output_file(condition: dict[str, Any], expected: str) -> None:
     value = condition.get("output_file") or condition.get("audio_file") or expected
     if value != expected:
@@ -216,10 +242,9 @@ def build_public_voice_manifest(
 
     language = str(source_manifest.get("language") or qwen_language_from_bcp47(example["input"]["output_language"]))
     speaker = str(source_manifest.get("speaker") or "")
-    model = str(source_manifest.get("model") or "")
+    model_reference = str(source_manifest.get("model") or "")
+    model, model_provenance = normalize_model_reference(model_reference)
     seed = _seed(source_manifest)
-    if model != DEFAULT_QWEN3_TTS_MODEL:
-        raise VoiceExportError(f"Unexpected Qwen3-TTS model for {example_name}: {model}")
     if not speaker:
         raise VoiceExportError(f"Missing speaker in source manifest for {example_name}")
 
@@ -230,8 +255,15 @@ def build_public_voice_manifest(
             raise VoiceExportError(f"{condition_name} text SHA mismatch for {example_name}")
         if condition.get("speaker") not in (None, speaker):
             raise VoiceExportError(f"{condition_name} speaker mismatch for {example_name}")
-        if condition.get("model") not in (None, model):
-            raise VoiceExportError(f"{condition_name} model mismatch for {example_name}")
+        condition_model = condition.get("model")
+        if condition_model is not None:
+            condition_normalized_model, _ = normalize_model_reference(
+                str(condition_model)
+            )
+            if condition_normalized_model != model:
+                raise VoiceExportError(
+                    f"{condition_name} model mismatch for {example_name}"
+                )
         if condition.get("language") not in (None, language):
             raise VoiceExportError(f"{condition_name} language mismatch for {example_name}")
 
@@ -271,6 +303,7 @@ def build_public_voice_manifest(
         "language": language,
         "speaker": speaker,
         "model": model,
+        "model_provenance": model_provenance,
         "seed": seed,
         "delivery_adapter": adapter,
         "ab_invariants": ab_invariants,

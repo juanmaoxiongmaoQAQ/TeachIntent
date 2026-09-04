@@ -100,6 +100,7 @@ def _write_render_source(
     plan: dict,
     unsafe_extra: bool = True,
     planned_instruct: str | None = None,
+    model_reference: str = DEFAULT_QWEN3_TTS_MODEL,
 ) -> None:
     source_dir = source_root / example_name / "v0_2"
     neutral_wav = source_dir / "neutral.wav"
@@ -119,7 +120,7 @@ def _write_render_source(
         "exact_verbal_text_sha256": text_sha,
         "language": qwen_language_from_bcp47("zh-CN"),
         "speaker": "Vivian",
-        "model": DEFAULT_QWEN3_TTS_MODEL,
+        "model": model_reference,
         "seed_reset_before_each_condition": 20260901,
         "delivery_adapter": mapping.to_dict(),
         "conditions": {
@@ -127,7 +128,7 @@ def _write_render_source(
                 "text": text,
                 "text_sha256": text_sha,
                 "speaker": "Vivian",
-                "model": DEFAULT_QWEN3_TTS_MODEL,
+                "model": model_reference,
                 "language": "Chinese",
                 "instruct": "",
                 "output_file": "neutral.wav",
@@ -138,7 +139,7 @@ def _write_render_source(
                 "text": text,
                 "text_sha256": text_sha,
                 "speaker": "Vivian",
-                "model": DEFAULT_QWEN3_TTS_MODEL,
+                "model": model_reference,
                 "language": "Chinese",
                 "instruct": mapping.instruct
                 if planned_instruct is None
@@ -220,6 +221,11 @@ def test_exports_three_public_voice_artifacts_byte_identical(tmp_path: Path) -> 
         assert public_manifest["prompt_version"] == "v0.2"
         assert public_manifest["conditions"]["neutral"]["instruct"] == ""
         assert public_manifest["model"] == DEFAULT_QWEN3_TTS_MODEL
+        assert public_manifest["model_provenance"] == {
+            "source_reference_type": "canonical_model_id",
+            "source_basename": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+            "normalized_model_id": DEFAULT_QWEN3_TTS_MODEL,
+        }
         assert "/Users/" not in json.dumps(public_manifest, ensure_ascii=False)
         assert "raw_response" not in public_manifest
     assert before == {
@@ -227,6 +233,78 @@ def test_exports_three_public_voice_artifacts_byte_identical(tmp_path: Path) -> 
         for path in sorted(source_root.rglob("*"))
         if path.is_file()
     }
+
+
+def test_local_checkpoint_model_reference_is_accepted_and_normalized(
+    tmp_path: Path,
+) -> None:
+    source_root, output_root, example_files = _write_synthetic_sources(tmp_path)
+    plan = json.loads(
+        example_files["corrective-feedback"].read_text(encoding="utf-8")
+    )["recorded_outputs"]["v0.2"]
+    _write_render_source(
+        source_root,
+        "corrective-feedback",
+        plan=plan,
+        model_reference=(
+            "/mnt/pfs/zitao_team/big_model/raw_models/"
+            "Qwen3-TTS-12Hz-1.7B-CustomVoice"
+        ),
+    )
+
+    manifest = exporter.copy_public_voice_artifact(
+        example_name="corrective-feedback",
+        source_root=source_root,
+        output_root=output_root,
+        example_files=example_files,
+    )
+    public_manifest = json.loads(
+        (output_root / "corrective-feedback" / "v0_2" / "manifest.json").read_text()
+    )
+    text = json.dumps(public_manifest, ensure_ascii=False)
+
+    assert manifest["model"] == DEFAULT_QWEN3_TTS_MODEL
+    assert public_manifest["model"] == DEFAULT_QWEN3_TTS_MODEL
+    assert public_manifest["model_provenance"] == {
+        "source_reference_type": "local_checkpoint",
+        "source_basename": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "normalized_model_id": DEFAULT_QWEN3_TTS_MODEL,
+    }
+    assert "/mnt/" not in text
+    assert "zitao_team" not in text
+
+
+@pytest.mark.parametrize(
+    "bad_model_reference",
+    [
+        "/mnt/pfs/zitao_team/big_model/raw_models/Qwen3-TTS-12Hz-1.7B-Base",
+        "/mnt/pfs/zitao_team/big_model/raw_models/OtherModel",
+        "/mnt/pfs/zitao_team/big_model/raw_models/Qwen3-TTS-12Hz-1.7B-CustomVoice-v2",
+        "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice-v2",
+    ],
+)
+def test_wrong_or_near_match_model_basename_is_rejected(
+    tmp_path: Path,
+    bad_model_reference: str,
+) -> None:
+    source_root, output_root, example_files = _write_synthetic_sources(tmp_path)
+    plan = json.loads(
+        example_files["corrective-feedback"].read_text(encoding="utf-8")
+    )["recorded_outputs"]["v0.2"]
+    _write_render_source(
+        source_root,
+        "corrective-feedback",
+        plan=plan,
+        model_reference=bad_model_reference,
+    )
+
+    with pytest.raises(exporter.VoiceExportError, match="Unexpected Qwen3-TTS model"):
+        exporter.copy_public_voice_artifact(
+            example_name="corrective-feedback",
+            source_root=source_root,
+            output_root=output_root,
+            example_files=example_files,
+        )
 
 
 def test_planned_instruct_is_validated_against_existing_adapter(tmp_path: Path) -> None:
