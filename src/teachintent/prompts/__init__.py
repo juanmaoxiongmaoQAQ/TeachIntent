@@ -23,6 +23,8 @@ from .registry import (
     PROMPT_VERSION_V0_2_RC1,
     PROMPT_VERSION_V0_2_RC2,
     PROMPT_VERSION_V0_2,
+    PROMPT_VERSION_V0_3,
+    PROMPT_VERSION_V0_4,
     PARENT_PROMPT_VERSION_V0_2,
     UnknownPromptVersionError,
     build_speech_plan_prompt_for_version,
@@ -39,6 +41,8 @@ from .speech_plan_v0_2_rc2 import (
 from .speech_plan_v0_2 import (
     build_speech_plan_prompt as build_speech_plan_prompt_v0_2,
 )
+from .speech_plan_v0_3 import build_speech_plan_prompt as build_speech_plan_prompt_v0_3
+from .speech_plan_v0_4 import build_speech_plan_prompt as build_speech_plan_prompt_v0_4
 
 __all__ = [
     # v0.1 (unchanged default)
@@ -54,6 +58,10 @@ __all__ = [
     # formal v0.2 (behavioral alias of rc.2)
     "build_speech_plan_prompt_v0_2",
     "PROMPT_VERSION_V0_2",
+    "PROMPT_VERSION_V0_3",
+    "build_speech_plan_prompt_v0_3",
+    "PROMPT_VERSION_V0_4",
+    "build_speech_plan_prompt_v0_4",
     "PARENT_PROMPT_VERSION_V0_2",
     # registry / selection
     "DEFAULT_PROMPT_VERSION",

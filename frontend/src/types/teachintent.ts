@@ -224,6 +224,7 @@ export interface GenerateRequest {
   knowledge_state: string;
   affective_state?: string | null;
   pedagogical_intent: PedagogicalIntent;
+  prompt_version?: "v0.2" | "v0.3" | "v0.4";
 }
 
 export interface IntentCompareRequest {
@@ -253,8 +254,48 @@ export interface LiveGenerationResponse {
   evaluation: null;
 }
 
+export interface BatonVoiceRenderResponse {
+  session_id: string;
+  status: "success" | "unavailable" | "error";
+  renderer: "batonvoice";
+  audio_id?: string | null;
+  audio_url?: string | null;
+  render_metadata?: {
+    sample_rate?: number;
+    duration_seconds?: number;
+    channels?: number;
+    [key: string]: unknown;
+  } | null;
+  reason?: string | null;
+}
+
 export interface EvaluateRequest {
   session_id: string;
+}
+
+export interface SegmentedBatonSegment {
+  segment_id: string;
+  order: number;
+  status: "success" | "failed" | "not_run" | "interrupted";
+  audio_url: string | null;
+  duration_seconds: number | null;
+  text_sha256: string;
+  text_char_count: number;
+  mapped: Record<string, number>;
+  mapping_diagnostics: Record<string, unknown>;
+  executor_diagnostics: Record<string, unknown>;
+  failure_reasons: string[];
+}
+
+export interface SegmentedBatonRenderResponse {
+  session_id: string;
+  status: "success" | "partial_failure" | "failed" | "interrupted";
+  renderer: "batonvoice_segmented";
+  run_id: string | null;
+  speech_speed: number | null;
+  manifest_metadata: Record<string, unknown>;
+  segments: SegmentedBatonSegment[];
+  reason?: string | null;
 }
 
 export interface LiveEvaluationResponse {

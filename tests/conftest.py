@@ -10,8 +10,29 @@ specifications:
 from __future__ import annotations
 
 import copy
+import tempfile
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
+
+pytest_plugins = ["historical_artifacts"]
+
+
+def pytest_configure(config):
+    """Use a fresh project-local pytest base; never reuse/delete recorded runs."""
+    if config.option.basetemp is None:
+        root = Path(__file__).resolve().parents[1] / "outputs/pytest"
+        root.mkdir(parents=True, exist_ok=True)
+        config.option.basetemp = str(root / f"run-{uuid4().hex}")
+
+
+@pytest.fixture
+def project_tmp_path() -> Path:
+    """Keep experimental artifacts inside the project, also under default pytest."""
+    root = Path(__file__).resolve().parents[1] / "outputs/offline-tests"
+    root.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="case-", dir=root))
 
 CANONICAL_INPUT_DOC = {
     "schema_version": "1.0.0-rc.2",

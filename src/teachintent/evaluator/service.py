@@ -78,6 +78,7 @@ from .models import (
     UniversalEvaluationArtifact,
 )
 from .parser import parse_judge_response
+from .normalization import normalize_judge_output
 from .prompt import build_judge_prompt, compute_judge_prompt_sha256
 from .rubric import (
     DIMENSION_IDS,
@@ -387,6 +388,8 @@ def _layer1_judge(
             judge_obj = completion.structured_object
         else:
             judge_obj = parse_judge_response(judge_raw)
+
+        judge_obj = normalize_judge_output(judge_obj, raw_text=judge_raw)
 
         # Validate JudgeOutput shape (Pydantic).
         try:

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0-rc.3",
+  "verbal_plan": {
+    "segments": [
+      {"segment_id": "seg_01", "text": "你观察得很对，匀速圆周运动里速度的大小确实没有变。"},
+      {"segment_id": "seg_02", "text": "不过，速度不仅仅包含大小，还包含方向。"},
+      {"segment_id": "seg_03", "text": "物体做圆周运动时，方向在不断改变，也就是速度在变化。"},
+      {"segment_id": "seg_04", "text": "所以加速度并不为零，因为加速度取决于速度的变化，包括方向的变化。"}
+    ]
+  },
+  "delivery_plan": {
+    "segment_overrides": [
+      {"segment_id": "seg_01", "prosody": {"volume": "soft"}},
+      {"segment_id": "seg_04", "prosody": {"pitch_level": "high"}}
+    ]
+  }
+}

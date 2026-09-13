@@ -245,6 +245,7 @@ def _tampered_spec(tmp_path: Path, spec: CanonicalRunSpec, name: str = "run") ->
 # ---------------------------------------------------------------------------
 # 1. Canonical population: existence, counts, uniqueness, restorability.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_canonical_run_registry_ids_and_paths():
     assert [s.block for s in CANONICAL_RUNS] == ["A", "B", "C"]
     assert [s.run_id for s in CANONICAL_RUNS] == [
@@ -264,6 +265,7 @@ def test_canonical_run_registry_ids_and_paths():
         assert (spec.path / "cases").is_dir()
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_canonical_counts_are_12_12_6_total_30():
     cases, integrity = load_canonical_cases()
     assert integrity.per_block_counts == {"A": 12, "B": 12, "C": 6}
@@ -271,6 +273,7 @@ def test_canonical_counts_are_12_12_6_total_30():
     assert sum(integrity.per_block_counts.values()) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_case_ids_are_unique():
     cases, integrity = load_canonical_cases()
     ids = [c.case_id for c in cases]
@@ -279,6 +282,7 @@ def test_case_ids_are_unique():
     assert integrity.duplicate_case_ids == []
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_every_case_is_restorable():
     cases, integrity = load_canonical_cases()
     assert integrity.restorable_cases == 30
@@ -296,6 +300,7 @@ def test_every_case_is_restorable():
         assert case.generation_outcome == "success"
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_generator_and_prompt_versions_are_v0_1():
     cases, integrity = load_canonical_cases()
     assert integrity.prompt_versions == ["v0.1"]
@@ -305,6 +310,7 @@ def test_generator_and_prompt_versions_are_v0_1():
     assert {c.generator_version for c in cases} == {"v0.1"}
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_intent_distribution_covers_six_intents():
     cases, _ = load_canonical_cases()
     counts = Counter(c.intent for c in cases)
@@ -315,6 +321,7 @@ def test_intent_distribution_covers_six_intents():
 # ---------------------------------------------------------------------------
 # 2. Population integrity fail-fast (offline tampering).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_c")
 def test_wrong_block_count_fails_fast(tmp_path):
     spec = _tampered_spec(tmp_path, CANONICAL_RUNS[2])  # block C: 6 cases
     shutil.rmtree(spec.path / "cases" / "PILOT-C-EXT-01")
@@ -322,6 +329,7 @@ def test_wrong_block_count_fails_fast(tmp_path):
         load_canonical_cases([spec])
 
 
+@pytest.mark.historical_artifacts("pilot_c")
 def test_wrong_prompt_version_fails_fast(tmp_path):
     spec = _tampered_spec(tmp_path, CANONICAL_RUNS[2])
     case_dir = spec.path / "cases" / "PILOT-C-ELI-01"
@@ -334,6 +342,7 @@ def test_wrong_prompt_version_fails_fast(tmp_path):
         load_canonical_cases([spec])
 
 
+@pytest.mark.historical_artifacts("pilot_c")
 def test_unrestorable_raw_response_fails_fast(tmp_path):
     spec = _tampered_spec(tmp_path, CANONICAL_RUNS[2])
     (spec.path / "cases" / "PILOT-C-ELI-01" / "raw_response.txt").write_text(
@@ -375,6 +384,7 @@ def test_verify_population_requires_the_full_30_case_population():
 # ---------------------------------------------------------------------------
 # 2b. Population fingerprint (SHA256 over the six raw source artifacts).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_population_fingerprint_matches_the_frozen_digest():
     cases, integrity = load_canonical_cases()
     assert integrity.population_sha256 == SOURCE_POPULATION_SHA256
@@ -384,6 +394,7 @@ def test_population_fingerprint_matches_the_frozen_digest():
     assert matches is True
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_population_fingerprint_shape_and_determinism():
     cases, _ = load_canonical_cases()
     records = build_population_records(cases)
@@ -410,6 +421,7 @@ def test_population_fingerprint_shape_and_determinism():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_population_fingerprint_uses_the_canonical_serialization():
     cases, _ = load_canonical_cases()
     records = build_population_records(cases)
@@ -421,6 +433,7 @@ def test_population_fingerprint_uses_the_canonical_serialization():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_c")
 def test_tampering_any_source_artifact_fails_fast(tmp_path):
     """Editing a single byte of one canonical artifact aborts the run."""
     spec = _tampered_spec(tmp_path, CANONICAL_RUNS[2])
@@ -430,6 +443,7 @@ def test_tampering_any_source_artifact_fails_fast(tmp_path):
         load_canonical_cases([spec])
 
 
+@pytest.mark.historical_artifacts("pilot_c")
 def test_tampering_a_non_scored_artifact_also_fails_fast(tmp_path):
     """The fingerprint covers metadata too, not only the scored artifacts."""
     spec = _tampered_spec(tmp_path, CANONICAL_RUNS[2])
@@ -441,6 +455,7 @@ def test_tampering_a_non_scored_artifact_also_fails_fast(tmp_path):
         load_canonical_cases([spec])
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_prepare_run_carries_the_fingerprint_and_provenance():
     run = prepare_baseline_run()
     assert run.protocol_status == PROTOCOL_STATUS == "Frozen"
@@ -458,6 +473,7 @@ def test_prepare_run_carries_the_fingerprint_and_provenance():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_manifest_records_the_fingerprint_and_provenance():
     run = prepare_baseline_run()
     manifest = build_manifest(run)
@@ -475,6 +491,7 @@ def test_manifest_records_the_fingerprint_and_provenance():
 # ---------------------------------------------------------------------------
 # 3. Exact 30 x 3 = 90 call planning, repeat labels {1,2,3}.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_plan_90_calls():
     run = prepare_baseline_run()
     calls = plan_baseline_calls(run.cases, 3)
@@ -483,6 +500,7 @@ def test_plan_90_calls():
     assert len({c["case_id"] for c in calls}) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_plan_repeat_labels_are_1_2_3():
     run = prepare_baseline_run()
     calls = plan_baseline_calls(run.cases, 3)
@@ -515,6 +533,7 @@ def test_plan_rejects_repeats_below_one():
         plan_baseline_calls([_case("X")], 0)
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_manifest_records_source_runs_and_design():
     run = prepare_baseline_run()
     manifest = build_manifest(run)
@@ -818,6 +837,7 @@ def test_case_diagnostics_marks_excluded_cases():
 # ---------------------------------------------------------------------------
 # 5. End-to-end offline execution (scripted judge; no API).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_end_to_end_offline_all_90_calls_succeed():
     run = prepare_baseline_run()
     judge = ScriptedJudge(_build_responses(run.cases))
@@ -856,6 +876,7 @@ def test_end_to_end_offline_all_90_calls_succeed():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_end_to_end_excludes_case_with_two_failures():
     run = prepare_baseline_run()
     victim = run.cases[0].case_id
@@ -881,6 +902,7 @@ def test_end_to_end_excludes_case_with_two_failures():
     assert row["successful_repeats"] == 1
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_end_to_end_exclusion_is_visible_per_intent_and_per_block():
     """An excluded case must stay visible as n_total / n_excluded, not vanish."""
     run = prepare_baseline_run()
@@ -906,6 +928,7 @@ def test_end_to_end_exclusion_is_visible_per_intent_and_per_block():
     assert intent["excluded_case_ids"] == [victim.case_id]
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_end_to_end_critical_flags_strict_majority():
     run = prepare_baseline_run()
     flag = "material_off_anchor_content"
@@ -984,6 +1007,7 @@ def test_build_baseline_judge_is_gated_on_a_present_api_key():
     ).model == FROZEN_JUDGE_MODEL_REQUESTED
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_experiment_metadata_never_reaches_the_judge_payload():
     run = prepare_baseline_run()
     case = run.cases[0]
@@ -1011,6 +1035,7 @@ def test_experiment_metadata_never_reaches_the_judge_payload():
 # ---------------------------------------------------------------------------
 # 7. Artifacts.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_write_artifacts_dry_run(tmp_path):
     run = prepare_baseline_run()
     out = tmp_path / "dry"
@@ -1030,6 +1055,7 @@ def test_write_artifacts_dry_run(tmp_path):
     assert manifest["source_population_sha256_match"] is True
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_write_artifacts_full_and_contain_no_secrets(tmp_path):
     run = prepare_baseline_run()
     judge = ScriptedJudge(_build_responses(run.cases))
@@ -1092,6 +1118,7 @@ def test_write_artifacts_full_and_contain_no_secrets(tmp_path):
     assert "api_key" not in blob
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_summary_is_descriptive_and_has_no_verdict():
     run = prepare_baseline_run()
     judge = ScriptedJudge(_build_responses(run.cases))

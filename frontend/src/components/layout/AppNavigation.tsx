@@ -1,6 +1,6 @@
 import { cn } from "../../lib/utils";
 
-type Page = "explore" | "live" | "compare";
+type Page = "explore" | "live" | "compare" | "showcase";
 
 interface AppNavigationProps {
   current: Page;
@@ -9,6 +9,7 @@ interface AppNavigationProps {
 
 export function AppNavigation({ current, onChange }: AppNavigationProps) {
   const items: Array<{ id: Page; label: string; description: string }> = [
+    { id: "showcase", label: "Showcase", description: "See planning in action" },
     {
       id: "explore",
       label: "Explore",
@@ -32,6 +33,7 @@ export function AppNavigation({ current, onChange }: AppNavigationProps) {
           key={item.id}
           type="button"
           onClick={() => onChange(item.id)}
+          aria-current={current === item.id ? "page" : undefined}
           className={cn(
             "rounded-xl px-4 py-2 text-left transition-colors",
             current === item.id

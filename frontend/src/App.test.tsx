@@ -66,6 +66,7 @@ const minimalWorkbench: WorkbenchResponse = {
 };
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   vi.stubGlobal(
     "fetch",
     vi.fn((url: string) => {

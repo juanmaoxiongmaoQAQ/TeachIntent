@@ -273,6 +273,7 @@ def test_protocol_v0_2_identity_and_status_is_frozen():
     assert "2026-08-30" in text
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_protocol_v0_2_document_sha_is_recomputed_from_the_frozen_text():
     """The manifest SHA must always be derived from the *current* doc bytes."""
     run = v2.prepare_baseline_run_v2()
@@ -339,6 +340,7 @@ def test_design_budget_separates_semantic_repeats_from_physical_attempts():
 # ---------------------------------------------------------------------------
 # 1-3. Semantic repeat / attempt structure.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_exactly_three_semantic_repeats_per_case():
     run = v2.prepare_baseline_run_v2()
     assert len(run.cases) == 30
@@ -349,6 +351,7 @@ def test_exactly_three_semantic_repeats_per_case():
     assert all(n == 3 for n in per_case.values())
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_semantic_repeat_indexes_are_1_2_3():
     run = v2.prepare_baseline_run_v2()
     judge = ScriptedJudge(_flat_responses(run.cases))
@@ -362,6 +365,7 @@ def test_semantic_repeat_indexes_are_1_2_3():
         assert repeats == [1, 2, 3]
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_attempt_indexes_are_1_2_3():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -384,6 +388,7 @@ def test_attempt_indexes_are_1_2_3():
 # ---------------------------------------------------------------------------
 # 4-9. Retry termination rules.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_first_attempt_success_stops_immediately():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -401,6 +406,7 @@ def test_first_attempt_success_stops_immediately():
     assert judge.calls == 1
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_retryable_failure_triggers_retry():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -417,6 +423,7 @@ def test_retryable_failure_triggers_retry():
     assert sleeper.delays == [2.0]
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_success_on_attempt_2_stops():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -433,6 +440,7 @@ def test_success_on_attempt_2_stops():
     assert judge.calls == 2
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_success_on_attempt_3_stops():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -460,6 +468,7 @@ def test_success_on_attempt_3_stops():
     assert sleeper.delays == [2.0, 2.0]
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_three_failures_fail_the_semantic_repeat_and_no_fourth_attempt():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -486,6 +495,7 @@ def test_three_failures_fail_the_semantic_repeat_and_no_fourth_attempt():
     assert judge.calls == 3
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_execute_run_rejects_max_attempts_other_than_three():
     run = v2.prepare_baseline_run_v2()
     judge = ScriptedJudge([])
@@ -497,6 +507,7 @@ def test_execute_run_rejects_max_attempts_other_than_three():
 # ---------------------------------------------------------------------------
 # 10-11. A legal artifact is accepted whatever it contains.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_low_valid_score_never_triggers_retry():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -517,6 +528,7 @@ def test_low_valid_score_never_triggers_retry():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_critical_flag_never_triggers_retry():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -542,6 +554,7 @@ def test_critical_flag_never_triggers_retry():
 # ---------------------------------------------------------------------------
 # 12-16. Every retryable failure type is retried.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 @pytest.mark.parametrize(
     "failure_payload, expected_failure_type",
     [
@@ -570,6 +583,7 @@ def test_each_retryable_failure_type_is_retried(
     assert outcome.successful_attempt_index == 2
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_judge_api_error_uses_the_5_then_15_second_backoff():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -594,6 +608,7 @@ def test_judge_api_error_uses_the_5_then_15_second_backoff():
 # ---------------------------------------------------------------------------
 # 17-18. Non-retryable failures stop the semantic repeat.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_internal_evaluator_error_is_not_retryable():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -613,6 +628,7 @@ def test_internal_evaluator_error_is_not_retryable():
     assert sleeper.delays == []
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_setup_errors_are_not_retryable():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -633,6 +649,7 @@ def test_setup_errors_are_not_retryable():
     assert outcome.semantic_repeat_success is False
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_layer0_gate_failure_is_not_masked_by_a_judge_retry():
     """A canonical Generator output that fails Layer 0 is an invariant
     violation: it must be exposed, never retried away."""
@@ -651,6 +668,7 @@ def test_layer0_gate_failure_is_not_masked_by_a_judge_retry():
     assert outcome.stopped_reason == v2.STOPPED_NON_RETRYABLE
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_non_retryable_failure_is_never_reported_as_retryable_in_metrics():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -672,6 +690,7 @@ def test_non_retryable_failure_is_never_reported_as_retryable_in_metrics():
 # ---------------------------------------------------------------------------
 # 19-21. Eligibility, scoring and aggregation.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_case_eligibility_counts_semantic_repeats_not_attempts():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -704,6 +723,7 @@ def test_case_eligibility_counts_semantic_repeats_not_attempts():
     assert diagnostics["exhausted_repeat_count"] == 1
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_failed_attempts_never_contribute_score_zero():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -730,6 +750,7 @@ def test_failed_attempts_never_contribute_score_zero():
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_aggregation_is_identical_to_v0_1_for_the_same_semantic_outcomes():
     """Same 90 semantic artifacts -> identical v0.1 aggregation under v0.2."""
     responses = _flat_responses(v1.load_canonical_cases()[0])
@@ -762,6 +783,7 @@ def test_aggregation_is_identical_to_v0_1_for_the_same_semantic_outcomes():
     assert operational["first_attempt_success_rate"] == 1.0
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_case_weight_is_not_increased_by_extra_attempts():
     """A case rescued by retries still counts once in the global statistics."""
     run = v2.prepare_baseline_run_v2()
@@ -789,6 +811,7 @@ def test_case_weight_is_not_increased_by_extra_attempts():
 # ---------------------------------------------------------------------------
 # 22. Attempt logging.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_attempt_logs_preserve_every_failure():
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -831,6 +854,7 @@ def test_attempt_logs_preserve_every_failure():
     assert rows[0].attempts[0].failure_type == "evidence_source_error"
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_evaluations_jsonl_keeps_every_attempt(tmp_path):
     run = v2.prepare_baseline_run_v2()
     case = run.cases[0]
@@ -1011,6 +1035,7 @@ def test_retry_recovery_rate_is_none_without_a_retryable_first_failure():
     assert metrics["first_attempt_success_rate"] == 1.0
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_exhausted_repeat_count_is_reported_per_case_and_globally():
     run = v2.prepare_baseline_run_v2()
     victim = run.cases[0]
@@ -1047,6 +1072,7 @@ def test_exhausted_repeat_count_is_reported_per_case_and_globally():
 # ---------------------------------------------------------------------------
 # 26. Population fingerprint unchanged.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_source_population_sha256_is_unchanged_from_v0_1():
     assert v2.SOURCE_POPULATION_SHA256 is v1.SOURCE_POPULATION_SHA256
     assert v2.SOURCE_POPULATION_SHA256 == (
@@ -1081,6 +1107,7 @@ def test_v0_1_protocol_document_is_unchanged_since_run_1():
         assert forbidden not in text
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_v0_1_runner_module_is_unchanged_by_v0_2():
     assert v1.PROTOCOL_VERSION == "v0.1"
     assert v1.PROTOCOL_STATUS == "Frozen"
@@ -1115,6 +1142,7 @@ def test_v0_1_runner_module_is_unchanged_by_v0_2():
 # ---------------------------------------------------------------------------
 # 29-30. CLI: dry-run makes no API call; formal mode fails fast without a key.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_dry_run_makes_no_api_call(monkeypatch, capsys):
     cli = _load_cli_module(V0_2_CLI)
 
@@ -1158,6 +1186,7 @@ def test_dry_run_makes_no_api_call(monkeypatch, capsys):
         assert expected in printed, expected
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_dry_run_subprocess_makes_no_api_call_and_writes_nothing(tmp_path):
     """End-to-end: the real CLI process, with the key removed from the env."""
     before = _v0_2_result_dirs()
@@ -1178,6 +1207,7 @@ def test_dry_run_subprocess_makes_no_api_call_and_writes_nothing(tmp_path):
     assert _v0_2_result_dirs() == before
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_frozen_protocol_document_sha_is_stable_and_current():
     """The frozen doc SHA must be computed live, never hard-coded from Draft."""
     first = v2.prepare_baseline_run_v2().protocol_document_sha256
@@ -1187,6 +1217,7 @@ def test_frozen_protocol_document_sha_is_stable_and_current():
     assert v2.PROTOCOL_STATUS == "Frozen"
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_formal_mode_without_api_key_fails_fast(monkeypatch, tmp_path, capsys):
     cli = _load_cli_module(V0_2_CLI)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
@@ -1204,6 +1235,7 @@ def test_formal_mode_without_api_key_fails_fast(monkeypatch, tmp_path, capsys):
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_formal_mode_with_empty_api_key_fails_fast(monkeypatch, capsys):
     cli = _load_cli_module(V0_2_CLI)
     monkeypatch.setenv("OPENROUTER_API_KEY", "   ")
@@ -1211,6 +1243,7 @@ def test_formal_mode_with_empty_api_key_fails_fast(monkeypatch, capsys):
     assert "Aborting before any Judge call" in capsys.readouterr().err
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_formal_mode_subprocess_without_key_exits_2():
     before = _v0_2_result_dirs()
     proc = subprocess.run(
@@ -1241,6 +1274,7 @@ def test_cli_rejects_non_frozen_repeats_and_max_attempts():
 # ---------------------------------------------------------------------------
 # Manifest / summary / artifact provenance.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_manifest_records_both_retry_concepts_and_the_attempt_policy():
     run = v2.prepare_baseline_run_v2()
     judge = ScriptedJudge(_flat_responses(run.cases))
@@ -1295,6 +1329,7 @@ def test_manifest_records_both_retry_concepts_and_the_attempt_policy():
     assert "expected_calls" not in manifest or manifest.get("expected_calls") == 90
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_summary_reports_operational_metrics_and_no_verdict():
     run = v2.prepare_baseline_run_v2()
     victim = run.cases[0]
@@ -1338,6 +1373,7 @@ def test_summary_reports_operational_metrics_and_no_verdict():
     assert ops["max_possible_physical_attempts"] == 270
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_artifacts_are_written_with_retry_columns_and_no_secrets(tmp_path):
     run = v2.prepare_baseline_run_v2()
     victim = run.cases[0]
@@ -1405,6 +1441,7 @@ def test_artifacts_are_written_with_retry_columns_and_no_secrets(tmp_path):
     assert "api_key" not in blob
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_dry_run_artifacts_have_no_metrics(tmp_path):
     run = v2.prepare_baseline_run_v2()
     out = tmp_path / "dry"

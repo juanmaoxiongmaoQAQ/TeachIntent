@@ -12,7 +12,7 @@ export function AppHeader() {
             TeachIntent
           </h1>
           <p className="text-sm text-slate-600">
-            Pedagogical Speech Control for AI Tutors
+            Pedagogical Speech Planning for AI Tutors
           </p>
         </div>
         <p className="ml-auto hidden text-sm text-slate-600 md:block">

@@ -76,11 +76,13 @@ class FakeHy3Client:
 # ---------------------------------------------------------------------------
 # Discovery + population consistency.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_thirty_inputs_recovered() -> None:
     cases = discover_canonical_inputs()
     assert len(cases) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_block_split_is_12_12_6() -> None:
     cases = discover_canonical_inputs()
     by_block = {"block_a": 0, "block_b": 0, "block_c": 0}
@@ -89,12 +91,14 @@ def test_block_split_is_12_12_6() -> None:
     assert by_block == {"block_a": 12, "block_b": 12, "block_c": 6}
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_case_ids_unique() -> None:
     cases = discover_canonical_inputs()
     ids = [c.case_id for c in cases]
     assert len(set(ids)) == len(ids) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_case_ids_match_canonical_population() -> None:
     cases = discover_canonical_inputs()
     population = canonical_population_case_ids()
@@ -107,6 +111,7 @@ def test_case_ids_match_canonical_population() -> None:
         assert block_ids == set(population[block])
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_validate_development_inputs_succeeds() -> None:
     cases = discover_canonical_inputs()
     report = validate_development_inputs(cases)
@@ -119,6 +124,7 @@ def test_validate_development_inputs_succeeds() -> None:
 # ---------------------------------------------------------------------------
 # Explicit prompt version (not the default).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_runner_passes_v0_2_rc1_explicitly(monkeypatch, tmp_path) -> None:
     captured: list[str] = []
 
@@ -137,6 +143,7 @@ def test_runner_passes_v0_2_rc1_explicitly(monkeypatch, tmp_path) -> None:
     assert captured == [CANDIDATE_PROMPT_VERSION] * 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_generated_metadata_records_rc1_and_generator_version(tmp_path) -> None:
     fake = FakeHy3Client(json.dumps(VALID_PLAN, ensure_ascii=False))
     manifest = run_development_batch(fake, dry_run=False, output_dir=tmp_path)
@@ -164,6 +171,7 @@ def test_generated_metadata_records_rc1_and_generator_version(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # Dry-run makes no API call.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_dry_run_makes_no_api_call_and_prints_plan(capsys) -> None:
     # A client that would fail the test if ever contacted.
     sentinel = FakeHy3Client("{}")
@@ -187,6 +195,7 @@ def test_dry_run_makes_no_api_call_and_prints_plan(capsys) -> None:
 # ---------------------------------------------------------------------------
 # Failure does not auto-retry.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_failure_does_not_auto_retry(tmp_path) -> None:
     fake = FakeHy3Client(
         "{}",
@@ -203,6 +212,7 @@ def test_failure_does_not_auto_retry(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # Canonical v0.1 artifacts are read-only / untouched.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_canonical_v0_1_artifacts_untouched() -> None:
     # The runner reads from results/pilot/* and never writes there.
     cases = discover_canonical_inputs()

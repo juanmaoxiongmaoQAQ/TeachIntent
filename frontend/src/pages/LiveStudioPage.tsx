@@ -4,15 +4,18 @@ import {
   evaluateSpeechPlan,
   fetchWorkbench,
   generateSpeechPlan,
+  renderWithBatonVoice,
 } from "../api/teachintent";
 import { EmptyState } from "../components/common/EmptyState";
 import { Panel } from "../components/common/Panel";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { Workbench } from "../components/workbench/Workbench";
+import { SegmentedBatonCandidate } from "../components/workbench/SegmentedBatonCandidate";
 import type {
   EvaluationArtifact,
   GenerateRequest,
   LiveGenerationResponse,
+  BatonVoiceRenderResponse,
   PedagogicalIntent,
 } from "../types/teachintent";
 
@@ -33,6 +36,7 @@ const EMPTY_FORM: GenerateRequest = {
   knowledge_state: "",
   affective_state: "",
   pedagogical_intent: "corrective_feedback",
+  prompt_version: "v0.2",
 };
 
 export function LiveStudioPage() {
@@ -42,6 +46,8 @@ export function LiveStudioPage() {
   const [generating, setGenerating] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renderState, setRenderState] = useState<"idle" | "rendering" | "success" | "unavailable" | "error">("idle");
+  const [renderResult, setRenderResult] = useState<BatonVoiceRenderResponse | null>(null);
 
   function update<K extends keyof GenerateRequest>(
     key: K,
@@ -52,17 +58,22 @@ export function LiveStudioPage() {
 
   async function loadShowcaseScenario() {
     setError(null);
-    const showcase = await fetchWorkbench("corrective-feedback");
-    setForm({
-      content_anchor: showcase.input.instructional_content.content_anchor,
-      teaching_scenario: showcase.input.pedagogical_context.scenario,
-      learner_utterance:
-        showcase.input.pedagogical_context.learner_utterance ?? "",
-      learner_level: showcase.input.learner.level,
-      knowledge_state: showcase.input.learner.knowledge_state,
-      affective_state: showcase.input.learner.affective_state ?? "",
-      pedagogical_intent: showcase.input.pedagogical_intent.primary,
-    });
+    try {
+      const showcase = await fetchWorkbench("corrective-feedback");
+      setForm((previous) => ({
+        prompt_version: previous.prompt_version ?? "v0.2",
+        content_anchor: showcase.input.instructional_content.content_anchor,
+        teaching_scenario: showcase.input.pedagogical_context.scenario,
+        learner_utterance:
+          showcase.input.pedagogical_context.learner_utterance ?? "",
+        learner_level: showcase.input.learner.level,
+        knowledge_state: showcase.input.learner.knowledge_state,
+        affective_state: showcase.input.learner.affective_state ?? "",
+        pedagogical_intent: showcase.input.pedagogical_intent.primary,
+      }));
+    } catch {
+      setError("Could not load the showcase scenario. Check the backend connection and try again.");
+    }
   }
 
   async function handleGenerate() {
@@ -80,10 +91,26 @@ export function LiveStudioPage() {
       });
       setGeneration(response);
       setEvaluation(null);
+      setRenderState("idle");
+      setRenderResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleRender() {
+    if (!generation || renderState === "rendering") return;
+    setRenderState("rendering");
+    setRenderResult(null);
+    try {
+      const response = await renderWithBatonVoice(generation.session_id);
+      setRenderResult(response);
+      setRenderState(response.status);
+    } catch {
+      setRenderState("error");
+      setRenderResult({ session_id: generation.session_id, status: "error", renderer: "batonvoice", reason: "Speech rendering failed. Please try again." });
     }
   }
 
@@ -200,6 +227,14 @@ export function LiveStudioPage() {
                 ))}
               </select>
             </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-800">Speech Plan prompt</span>
+              <select value={form.prompt_version ?? "v0.2"} onChange={(event) => update("prompt_version", event.target.value as GenerateRequest["prompt_version"])} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm">
+                <option value="v0.2">v0.2 (compatible default)</option>
+                <option value="v0.3">v0.3 (sparse local delivery)</option>
+                <option value="v0.4">v0.4 (expressive sparse delivery)</option>
+              </select>
+            </label>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
@@ -237,22 +272,27 @@ export function LiveStudioPage() {
             evaluating={evaluating}
             onEvaluate={handleEvaluate}
           />
-          <Panel title="Voice Realization">
-            <p className="text-sm leading-6 text-slate-600">
-              Curated voice realization is available in Explore only.
-            </p>
-            {Object.keys(generation.speech_plan.delivery_plan).length > 0 ? (
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Current live plan contains delivery controls, but no live TTS
-                call is made in this application mode.
-              </p>
+          <Panel title="Speech Rendering">
+            <p className="text-sm leading-6 text-slate-600">Render the generated teaching speech with BatonVoice.</p>
+            {renderState === "success" && renderResult?.audio_url ? (
+              <div className="mt-4 space-y-2"><span className="text-sm font-medium text-slate-900">BatonVoice</span><audio className="w-full" controls src={renderResult.audio_url} /><p className="text-xs text-slate-500">{formatRenderMetadata(renderResult)}</p></div>
             ) : null}
+            {renderState === "unavailable" ? <p className="mt-3 text-sm text-amber-700">BatonVoice is currently unavailable.</p> : null}
+            {renderState === "error" ? <p className="mt-3 text-sm text-red-700">Speech rendering failed. Your Speech Plan and evaluation are unchanged.</p> : null}
+            <button type="button" onClick={handleRender} disabled={renderState === "rendering"} className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60">{renderState === "rendering" ? "Rendering…" : renderState === "success" ? "Render again" : "Render with BatonVoice"}</button>
           </Panel>
+          <SegmentedBatonCandidate key={generation.session_id} sessionId={generation.session_id} />
           <TechnicalDetails generation={generation} evaluation={evaluation} />
         </>
       ) : null}
     </div>
   );
+}
+
+function formatRenderMetadata(result: BatonVoiceRenderResponse) {
+  const metadata = result.render_metadata;
+  if (!metadata) return "";
+  return [metadata.sample_rate ? `${metadata.sample_rate / 1000} kHz` : null, metadata.duration_seconds ? `${metadata.duration_seconds.toFixed(1)} s` : null].filter(Boolean).join(" · ");
 }
 
 function TextInput({

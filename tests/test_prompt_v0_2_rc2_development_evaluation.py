@@ -171,6 +171,7 @@ def executed_rc2():
 # ---------------------------------------------------------------------------
 # 1-3. rc.2 generation run loads; 30 cases; byte-identical inputs.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_generation_run_loads(prepared_rc2) -> None:
     run = prepared_rc2
     assert run.candidate_generation_run_id == RC2_GENERATION_RUN_ID
@@ -184,6 +185,7 @@ def test_rc2_generation_run_loads(prepared_rc2) -> None:
     assert Path(run.candidate_run.source_runs[0]["path"]).is_dir()
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_30_cases_exact_match(prepared_rc2) -> None:
     integrity = prepared_rc2.integrity
     assert integrity.total_cases == 30
@@ -196,6 +198,7 @@ def test_rc2_30_cases_exact_match(prepared_rc2) -> None:
     assert integrity.unique_case_ids is True
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_input_fingerprints_match(prepared_rc2) -> None:
     assert prepared_rc2.integrity.input_fingerprints_match is True
     baseline_sha = prepared_rc2.baseline.input_sha256_by_case
@@ -207,6 +210,7 @@ def test_rc2_input_fingerprints_match(prepared_rc2) -> None:
 # ---------------------------------------------------------------------------
 # 4. The rc.1 evaluation path is still available and unchanged.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_rc1_evaluation_path_still_available() -> None:
     run = de.prepare_development_evaluation()  # no argument -> rc.1 default
     assert run.candidate_prompt_version == de.CANDIDATE_PROMPT_VERSION
@@ -221,6 +225,7 @@ def test_rc1_evaluation_path_still_available() -> None:
     assert set(de.SUPPORTED_PROMPT_VERSIONS) == {"v0.2-rc.1", "v0.2-rc.2"}
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation", "rc2_generation")
 def test_rc1_and_rc2_use_the_same_frozen_protocol() -> None:
     rc1 = de.prepare_development_evaluation(prompt_version="v0.2-rc.1")
     rc2 = de.prepare_development_evaluation(prompt_version="v0.2-rc.2")
@@ -238,6 +243,7 @@ def test_rc1_and_rc2_use_the_same_frozen_protocol() -> None:
     assert set(rc1.integrity.case_ids) == set(rc2.integrity.case_ids)
 
 
+@pytest.mark.historical_artifacts("baseline_v2")
 def test_results_roots_are_separate() -> None:
     assert de.evaluation_results_root_for_prompt_version("v0.2-rc.1").name == (
         "prompt_v0_2_rc1_development_evaluation"
@@ -264,6 +270,7 @@ def test_unsupported_prompt_version_is_rejected() -> None:
 # ---------------------------------------------------------------------------
 # 5. rc.2 candidate prompt / version provenance.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_provenance_is_recorded(prepared_rc2) -> None:
     run = prepared_rc2
     assert run.integrity.prompt_versions == ["v0.2-rc.2"]
@@ -289,6 +296,7 @@ def test_rc2_provenance_is_recorded(prepared_rc2) -> None:
     assert manifest["evaluator_retry_enabled"] is False
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation", "rc2_generation")
 def test_rc2_rejects_a_run_of_the_wrong_prompt(prepared_rc2, tmp_path) -> None:
     """Pointing rc.2 at the rc.1 run must fail the pre-flight, not silently pass."""
     baseline = prepared_rc2.baseline
@@ -308,6 +316,7 @@ def test_rc2_rejects_a_run_of_the_wrong_prompt(prepared_rc2, tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # 6-7. The v0.1 side is never regenerated and never re-Judge-evaluated.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_baseline_is_not_reevaluated(monkeypatch) -> None:
     """Every physical attempt must target an rc.2 case — never a v0.1 one."""
     seen: list[str] = []
@@ -331,6 +340,7 @@ def test_baseline_is_not_reevaluated(monkeypatch) -> None:
     assert judge.calls == 90
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_manifest_declares_no_baseline_rerun(executed_rc2) -> None:
     run, _ = executed_rc2
     manifest = de.build_development_manifest(run)
@@ -343,6 +353,7 @@ def test_manifest_declares_no_baseline_rerun(executed_rc2) -> None:
 # ---------------------------------------------------------------------------
 # 8-9. Frozen acquisition policy.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_planned_semantic_repeats_is_90(prepared_rc2) -> None:
     cand = prepared_rc2.candidate_run
     assert cand.planned_semantic_repeats == 90
@@ -350,12 +361,14 @@ def test_rc2_planned_semantic_repeats_is_90(prepared_rc2) -> None:
     assert len(cand.cases) == 30
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_max_physical_attempts_is_3(prepared_rc2) -> None:
     cand = prepared_rc2.candidate_run
     assert cand.max_attempts_per_semantic_repeat == 3
     assert cand.max_possible_physical_attempts == 270
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_reuses_the_frozen_retry_taxonomy(prepared_rc2) -> None:
     manifest = de.build_development_manifest(prepared_rc2)
     assert manifest["retryable_failure_types"] == list(v2.RETRYABLE_FAILURE_TYPES)
@@ -372,6 +385,7 @@ def test_rc2_reuses_the_frozen_retry_taxonomy(prepared_rc2) -> None:
     assert de.NON_RETRYABLE_FAILURE_TYPES is v2.NON_RETRYABLE_FAILURE_TYPES
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_execution_rejects_a_redesigned_attempt_policy(prepared_rc2) -> None:
     judge = ScriptedJudge([])
     with pytest.raises(ValueError, match="Protocol v0.2 Section 7"):
@@ -381,6 +395,7 @@ def test_rc2_execution_rejects_a_redesigned_attempt_policy(prepared_rc2) -> None
 # ---------------------------------------------------------------------------
 # 10. Eligibility logic is unchanged.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_plan_eligibility_is_at_least_2_of_3(executed_rc2) -> None:
     run, _ = executed_rc2
     assert v1.MIN_SUCCESSFUL_REPEATS == 2
@@ -388,6 +403,7 @@ def test_rc2_plan_eligibility_is_at_least_2_of_3(executed_rc2) -> None:
         assert v1.case_eligible(run.candidate_run.records, case.case_id) is True
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_pair_eligibility_intersects_both_sides(executed_rc2) -> None:
     run, _ = executed_rc2
     rows = de.case_pair_rows(run)
@@ -412,6 +428,7 @@ def test_rc2_pair_eligibility_intersects_both_sides(executed_rc2) -> None:
     assert coverage["v0_1_side_reevaluated"] is False
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_pair_eligibility_excludes_an_rc2_failure() -> None:
     """An rc.2 side with < 2 successful repeats is excluded; v0.1 is NOT rerun."""
     run = de.prepare_development_evaluation(prompt_version="v0.2-rc.2")
@@ -448,6 +465,7 @@ def test_rc2_pair_eligibility_excludes_an_rc2_failure() -> None:
     ) == 4
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_delta_is_candidate_minus_v0_1() -> None:
     run = de.prepare_development_evaluation(prompt_version="v0.2-rc.2")
     # D5 lowered to 2 (a valid rubric score) so the delta is non-trivially
@@ -479,6 +497,7 @@ def test_rc2_delta_is_candidate_minus_v0_1() -> None:
 # ---------------------------------------------------------------------------
 # 11. A failed semantic repeat is never scored as 0.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_failed_semantic_repeat_is_not_scored_zero() -> None:
     run = de.prepare_development_evaluation(prompt_version="v0.2-rc.2")
     victim = run.candidate_run.cases[0].case_id
@@ -514,6 +533,7 @@ def test_rc2_failed_semantic_repeat_is_not_scored_zero() -> None:
 # ---------------------------------------------------------------------------
 # Delivery behaviour must ride along with D5 (Section 7).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_delivery_behavior_is_reported(prepared_rc2) -> None:
     delivery = de.summarize_candidate_delivery_behavior(prepared_rc2)
     assert delivery["total_cases"] == 30
@@ -528,6 +548,7 @@ def test_rc2_delivery_behavior_is_reported(prepared_rc2) -> None:
     assert delivery["by_intent"]["scaffolding"]["non_empty"] == 1
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_summary_and_comparison_carry_delivery_behavior(executed_rc2) -> None:
     run, _ = executed_rc2
     rows = de.case_pair_rows(run)
@@ -558,6 +579,7 @@ def test_summary_and_comparison_carry_delivery_behavior(executed_rc2) -> None:
     assert comparison["primary"]["threshold"] is None
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_rc1_delivery_behavior_collapse_is_visible() -> None:
     """The rc.1 side measures 30/0 — the collapse rc.2 was written to break."""
     run = de.prepare_development_evaluation(prompt_version="v0.2-rc.1")
@@ -570,6 +592,7 @@ def test_rc1_delivery_behavior_collapse_is_visible() -> None:
 # ---------------------------------------------------------------------------
 # 12. dry-run makes no API call.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_cli_rc2_dry_run_makes_no_api_call() -> None:
     proc = subprocess.run(
         [
@@ -601,6 +624,7 @@ def test_cli_rc2_dry_run_makes_no_api_call() -> None:
     assert "No API call was made." in out
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_cli_rc1_dry_run_still_defaults_to_rc1() -> None:
     proc = subprocess.run(
         [sys.executable, str(CLI), "--dry-run"],
@@ -630,6 +654,7 @@ def test_cli_rejects_an_unknown_prompt_version() -> None:
     assert "invalid choice" in (proc.stderr + proc.stdout)
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_dry_run_never_constructs_a_judge(monkeypatch) -> None:
     import importlib.util
 
@@ -648,6 +673,7 @@ def test_dry_run_never_constructs_a_judge(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # Artifacts.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_artifacts_are_written(executed_rc2, tmp_path) -> None:
     run, _ = executed_rc2
     out = tmp_path / "rc2_run"
@@ -703,6 +729,7 @@ def test_rc2_artifacts_are_written(executed_rc2, tmp_path) -> None:
     assert "rc_2_mean" in comparison["protected"]["D1"]
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc2_generation")
 def test_rc2_results_root_is_used_by_the_cli(monkeypatch) -> None:
     """``--execute`` writes under the rc.2 evaluation root, never the rc.1 one."""
     import importlib.util
@@ -749,6 +776,7 @@ def test_rc2_results_root_is_used_by_the_cli(monkeypatch) -> None:
     assert out_dir.parent != de.RESULTS_ROOT
 
 
+@pytest.mark.historical_artifacts("rc2_generation")
 def test_frozen_inputs_are_never_written() -> None:
     """The paired evaluation never writes into the two source runs."""
     assert de.RESULTS_ROOT_RC2.name == "prompt_v0_2_rc2_development_evaluation"

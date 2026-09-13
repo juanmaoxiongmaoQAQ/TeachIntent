@@ -1,5 +1,15 @@
 """Optional downstream renderers for validated TeachIntent Speech Plans."""
 
+from .batonvoice import (
+    BatonVoiceBackend,
+    BatonVoiceConfig,
+    BatonVoiceRenderError,
+    BatonVoiceRenderResult,
+    BatonVoiceRenderer,
+    BatonVoiceUnavailable,
+    quantitative_plan_from_speech_plan,
+)
+
 from .qwen3_tts import (
     DEFAULT_QWEN3_TTS_MODEL,
     Qwen3CustomVoiceBackend,
@@ -13,6 +23,13 @@ from .qwen3_tts import (
 )
 
 __all__ = [
+    "BatonVoiceBackend",
+    "BatonVoiceConfig",
+    "BatonVoiceRenderError",
+    "BatonVoiceRenderResult",
+    "BatonVoiceRenderer",
+    "BatonVoiceUnavailable",
+    "quantitative_plan_from_speech_plan",
     "DEFAULT_QWEN3_TTS_MODEL",
     "Qwen3CustomVoiceBackend",
     "Qwen3TTSDependencyError",

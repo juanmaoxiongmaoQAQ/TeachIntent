@@ -18,3 +18,25 @@ dist/
 .workbuddy/
 
 results/
+outputs/
+
+# Local credentials, agent state, shell history and optional model checkpoints.
+auth.json
+.netrc
+.bash_history
+.zsh_history
+.python_history
+.codex/
+.aws/
+.ssh/
+/.vscode/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.gguf
+/models/
+/checkpoints/
+pytorch_model*.bin
+model-*.bin

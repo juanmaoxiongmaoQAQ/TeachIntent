@@ -49,7 +49,7 @@ export function Workbench({
       {mode === "live" ? (
         <Panel>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone="accent">Live Hy3 · Prompt v0.2</StatusBadge>
+            <StatusBadge tone="accent">{`Live Hy3 · Prompt ${generationMeta?.prompt_version ?? "v0.2"}`}</StatusBadge>
             {evaluation?.available ? (
               <StatusBadge tone="accent">
                 Live Evaluator v0.1 · Independent Judge

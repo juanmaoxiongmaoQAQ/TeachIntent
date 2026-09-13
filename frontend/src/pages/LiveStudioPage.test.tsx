@@ -161,11 +161,58 @@ describe("LiveStudioPage", () => {
     const user = userEvent.setup();
     render(<LiveStudioPage />);
 
+    expect(screen.getByRole("combobox", { name: "Speech Plan prompt" })).toHaveValue("v0.2");
+
     await user.click(screen.getByText("Load showcase scenario"));
 
     expect(await screen.findByDisplayValue("high_school")).toBeInTheDocument();
     expect(screen.queryByText("Speech Plan")).not.toBeInTheDocument();
     expect(screen.queryByText("Recorded Evaluator v0.1")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Speech Plan prompt" })).toHaveValue("v0.2");
+  });
+
+  it.each(["v0.3", "v0.4"])("uses explicit %s and keeps evaluation/render on the generated session", async (version) => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url === "/api/examples/corrective-feedback") return Promise.resolve(jsonResponse(showcase));
+      if (url === "/api/generate") return Promise.resolve(jsonResponse({
+        ...generated, generation: { ...generated.generation, prompt_version: version },
+      }));
+      if (url === "/api/evaluate") return Promise.resolve(jsonResponse(evaluated));
+      if (url === "/api/render/batonvoice") return Promise.resolve(jsonResponse({
+        session_id: generated.session_id, status: "success", renderer: "batonvoice",
+        audio_url: `/api/live/${generated.session_id}/batonvoice.wav`,
+        render_metadata: { sample_rate: 24000, duration_seconds: 1, channels: 1 },
+      }));
+      return Promise.resolve(jsonResponse({}, 404));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<LiveStudioPage />);
+    const selector = screen.getByRole("combobox", { name: "Speech Plan prompt" });
+    expect(selector).toHaveValue("v0.2");
+    expect(screen.getByRole("option", { name: "v0.4 (expressive sparse delivery)" })).toBeInTheDocument();
+    await user.selectOptions(selector, version);
+    await user.click(screen.getByText("Load showcase scenario"));
+    await screen.findByDisplayValue("high_school");
+    expect(selector).toHaveValue(version);
+    await user.click(screen.getByText("Generate with Hy3"));
+    expect(await screen.findByText(`Live Hy3 · Prompt ${version}`)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/generate", expect.objectContaining({
+      body: expect.stringContaining(`"prompt_version":"${version}"`),
+    }));
+    // Editing the next request must not change the already-generated session.
+    await user.selectOptions(selector, "v0.2");
+    await user.click(screen.getByText("Evaluate this plan"));
+    await screen.findByText("Live Evaluator v0.1 · Independent Judge");
+    await user.click(screen.getByText("Render with BatonVoice"));
+    await screen.findByText("Render again");
+    for (const url of ["/api/evaluate", "/api/render/batonvoice"]) {
+      expect(fetchMock).toHaveBeenCalledWith(url, expect.objectContaining({
+        body: JSON.stringify({ session_id: generated.session_id }),
+      }));
+    }
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/generate")).toHaveLength(1);
+    expect(screen.getByText(`Live Hy3 · Prompt ${version}`)).toBeInTheDocument();
   });
 
   it("generates live workbench, evaluates, and highlights live evidence", async () => {
@@ -225,6 +272,18 @@ describe("LiveStudioPage", () => {
     expect(screen.getByText("Hy3 provider unavailable.")).toBeInTheDocument();
   });
 
+  it("reports a showcase load failure without an unhandled rejection or generation", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network unavailable"));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<LiveStudioPage />);
+    await user.click(screen.getByText("Load showcase scenario"));
+    expect(await screen.findByText(/Could not load the showcase scenario/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/examples/corrective-feedback");
+    expect(screen.getByText("Generate with Hy3")).toBeEnabled();
+  });
+
   it("shows Generate loading state", async () => {
     let resolveGenerate: ((response: Response) => void) | undefined;
     vi.stubGlobal(
@@ -250,6 +309,47 @@ describe("LiveStudioPage", () => {
     expect(screen.getByText("Generating…")).toBeDisabled();
     resolveGenerate?.(jsonResponse(generated));
     expect(await screen.findByText("Live Hy3 · Prompt v0.2")).toBeInTheDocument();
+  });
+
+  it("keeps single-pass and segmented controls independent on the saved session", async () => {
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    const fetchMock = vi.fn((url: string) => {
+      if (url === "/api/examples/corrective-feedback") return Promise.resolve(jsonResponse(showcase));
+      if (url === "/api/generate") return Promise.resolve(jsonResponse(generated));
+      if (url === "/api/render/batonvoice") return Promise.resolve(jsonResponse({
+        session_id: generated.session_id, status: "success", renderer: "batonvoice", audio_url: "/single.wav",
+      }));
+      if (url === "/api/render/batonvoice-segmented") return Promise.resolve(jsonResponse({
+        session_id: generated.session_id, status: "success", renderer: "batonvoice_segmented", run_id: "run-1",
+        speech_speed: 0.85, manifest_metadata: {}, segments: [{
+          segment_id: "seg_01", order: 1, status: "success", audio_url: "/seg_01.wav", duration_seconds: 5,
+          text_sha256: "hash", text_char_count: 10, mapped: {}, mapping_diagnostics: {},
+          executor_diagnostics: {}, failure_reasons: [],
+        }],
+      }));
+      return Promise.resolve(jsonResponse({}, 404));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    const { container, unmount } = render(<LiveStudioPage />);
+    await user.click(screen.getByText("Load showcase scenario"));
+    await user.click(screen.getByText("Generate with Hy3"));
+    await screen.findByText("Render with BatonVoice");
+    expect(screen.getByText("Render segmented candidate")).toBeEnabled();
+    await user.click(screen.getByText("Render with BatonVoice"));
+    await screen.findByText("Render again");
+    const single = container.querySelector('audio[src="/single.wav"]');
+    expect(single).toHaveAttribute("controls");
+    await user.click(screen.getByText("Render segmented candidate"));
+    await screen.findByText("Play full segmented response");
+    expect(container.querySelector('audio[src="/single.wav"]')).toBe(single);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/generate")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/evaluate")).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledWith("/api/render/batonvoice-segmented", expect.objectContaining({
+      body: JSON.stringify({ session_id: generated.session_id }),
+    }));
+    unmount();
+    pause.mockRestore();
   });
 
   it("shows Evaluate loading state", async () => {

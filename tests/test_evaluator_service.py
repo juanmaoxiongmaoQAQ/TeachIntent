@@ -154,6 +154,44 @@ def _judge_config(**overrides):
     return JudgeConfig.model_validate(base)
 
 
+@pytest.mark.parametrize("mode,passes", [
+    ("canonical", True), ("alias", True), ("collision", False),
+    ("unknown", False), ("missing", False), ("extra", False),
+])
+def test_score_alias_normalization_pipeline(mode, passes):
+    from copy import deepcopy
+    from teachintent.evaluator.normalization import normalize_judge_output
+
+    output = json.loads(_valid_judge_output_json())
+    canonical = "delivery_necessity_sparsity"
+    alias = "delivery_necessity_and_sparsity"
+    if mode != "canonical":
+        output["scores"][alias] = deepcopy(output["scores"][canonical])
+        if mode != "collision":
+            del output["scores"][canonical]
+    if mode == "unknown":
+        output["scores"]["delivery_neccessity_sparsity"] = output["scores"].pop(alias)
+    if mode == "missing":
+        del output["scores"][DIMS[0]]
+    if mode == "extra":
+        output["scores"]["unknown"] = deepcopy(output["scores"][alias])
+    raw = json.dumps(output)
+    original = deepcopy(output)
+    judge = FakeJudge(lambda _: raw)
+    result = evaluate_speech_plan(
+        INPUT_DOC, json.dumps(VALID_PLAN), _run_context(), _judge_config(), judge
+    )
+    assert judge.call_count == 1
+    if passes:
+        assert result.failure is None
+        assert set(result.artifact.scores) == set(DIMS)
+        normalized = normalize_judge_output(output)
+        assert output == original
+        assert normalized["scores"][canonical] == original["scores"].get(canonical, original["scores"].get(alias))
+    else:
+        assert result.failure.failure_type == "judge_output_schema_error"
+
+
 # ---------------------------------------------------------------------------
 # Layer 0: response_parse failure.
 # ---------------------------------------------------------------------------

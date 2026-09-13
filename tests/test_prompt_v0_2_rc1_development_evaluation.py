@@ -178,6 +178,7 @@ def executed(prepared):
 # ---------------------------------------------------------------------------
 # 1-2. Population identity and candidate usability.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_case_ids_exact_match(prepared) -> None:
     integrity = prepared.integrity
     baseline_ids = set(prepared.baseline.case_ids)
@@ -190,6 +191,7 @@ def test_case_ids_exact_match(prepared) -> None:
     assert len(baseline_ids) == 30
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_candidate_30_cases_all_usable(prepared) -> None:
     integrity = prepared.integrity
     assert integrity.total_cases == 30
@@ -203,6 +205,7 @@ def test_candidate_30_cases_all_usable(prepared) -> None:
     assert integrity.generation_outcomes == ["success"]
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_candidate_inputs_are_byte_identical_to_v0_1(prepared) -> None:
     assert prepared.integrity.input_fingerprints_match is True
     baseline_sha = prepared.baseline.input_sha256_by_case
@@ -213,6 +216,7 @@ def test_candidate_inputs_are_byte_identical_to_v0_1(prepared) -> None:
 # ---------------------------------------------------------------------------
 # 3. Frozen baseline evaluation loads correctly.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_baseline_evaluation_loads_the_frozen_run(prepared) -> None:
     baseline = prepared.baseline
     assert baseline.run_id == de.BASELINE_EVALUATION_RUN_ID
@@ -235,6 +239,7 @@ def test_baseline_load_rejects_a_wrong_or_missing_run(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # 4-5. The v0.1 side is never regenerated and never re-evaluated.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_baseline_is_not_reevaluated(executed, monkeypatch) -> None:
     """Every physical attempt must target a v0.2-rc.1 case — never a v0.1 one."""
     run, judge = executed
@@ -260,6 +265,7 @@ def test_baseline_is_not_reevaluated(executed, monkeypatch) -> None:
     assert judge2.calls == 90
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_manifest_declares_no_baseline_rerun(executed) -> None:
     run, _ = executed
     manifest = de.build_development_manifest(run)
@@ -272,6 +278,7 @@ def test_manifest_declares_no_baseline_rerun(executed) -> None:
 # ---------------------------------------------------------------------------
 # 6-8. Frozen acquisition policy.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_candidate_planned_semantic_repeats_is_90(prepared) -> None:
     cand = prepared.candidate_run
     assert cand.planned_semantic_repeats == 90
@@ -279,12 +286,14 @@ def test_candidate_planned_semantic_repeats_is_90(prepared) -> None:
     assert len(cand.cases) == 30
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_max_physical_attempts_is_3(prepared) -> None:
     cand = prepared.candidate_run
     assert cand.max_attempts_per_semantic_repeat == 3
     assert cand.max_possible_physical_attempts == 270
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_retry_taxonomy_is_identical_to_protocol_v0_2(prepared, monkeypatch) -> None:
     """The candidate run reuses the frozen taxonomy object, by identity."""
     manifest = de.build_development_manifest(prepared)
@@ -306,6 +315,7 @@ def test_retry_taxonomy_is_identical_to_protocol_v0_2(prepared, monkeypatch) -> 
     assert de.NON_RETRYABLE_FAILURE_TYPES is v2.NON_RETRYABLE_FAILURE_TYPES
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_execution_rejects_a_redesigned_attempt_policy(prepared) -> None:
     judge = ScriptedJudge([])
     with pytest.raises(ValueError, match="Protocol v0.2 Section 7"):
@@ -315,6 +325,7 @@ def test_execution_rejects_a_redesigned_attempt_policy(prepared) -> None:
 # ---------------------------------------------------------------------------
 # 9-10. Eligibility.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_plan_eligibility_is_at_least_2_of_3(executed) -> None:
     run, _ = executed
     assert v1.MIN_SUCCESSFUL_REPEATS == 2
@@ -324,6 +335,7 @@ def test_plan_eligibility_is_at_least_2_of_3(executed) -> None:
         assert v1.case_eligible(run.candidate_run.records, case.case_id) is True
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_pair_eligibility_both_sides_healthy(executed) -> None:
     run, _ = executed
     rows = de.case_pair_rows(run)
@@ -358,6 +370,7 @@ def test_pair_eligibility_both_sides_healthy(executed) -> None:
     assert coverage["v0_1_side_rerun"] is False
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_pair_eligibility_excludes_a_rc_1_failure() -> None:
     """An rc.1 side with < 2 successful repeats is excluded, v0.1 is NOT rerun."""
     run = de.prepare_development_evaluation()
@@ -403,6 +416,7 @@ def test_pair_eligibility_excludes_a_rc_1_failure() -> None:
 # ---------------------------------------------------------------------------
 # 11. Delta calculation.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_delta_is_rc1_minus_v0_1() -> None:
     run = de.prepare_development_evaluation()
     # A uniform, known score set on the candidate side. D5 is lowered to 2 (a
@@ -447,6 +461,7 @@ def test_delta_stats_are_empty_safe() -> None:
     assert stats["improved"] == 0
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_group_breakdown_covers_intent_and_block(executed) -> None:
     run, _ = executed
     rows = de.case_pair_rows(run)
@@ -465,6 +480,7 @@ def test_group_breakdown_covers_intent_and_block(executed) -> None:
 # ---------------------------------------------------------------------------
 # 12. A failed semantic repeat is never scored as 0.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_failed_semantic_repeat_is_not_scored_zero() -> None:
     run = de.prepare_development_evaluation()
     victim = run.candidate_run.cases[0].case_id
@@ -509,6 +525,7 @@ def test_failed_semantic_repeat_is_not_scored_zero() -> None:
 # ---------------------------------------------------------------------------
 # 13. dry-run makes no API call.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_cli_dry_run_makes_no_api_call() -> None:
     proc = subprocess.run(
         [sys.executable, str(CLI), "--dry-run"],
@@ -538,6 +555,7 @@ def test_cli_requires_a_mode() -> None:
     assert "--dry-run" in (proc.stderr + proc.stdout)
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_dry_run_never_constructs_a_judge(monkeypatch) -> None:
     """The offline pre-flight path must not touch the Judge builder at all."""
     import importlib.util
@@ -557,6 +575,7 @@ def test_dry_run_never_constructs_a_judge(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # 14. Artifacts.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_artifacts_are_written_with_full_provenance(executed, tmp_path) -> None:
     run, _ = executed
     out = tmp_path / "run"
@@ -620,6 +639,7 @@ def test_artifacts_are_written_with_full_provenance(executed, tmp_path) -> None:
     assert comparison["interpretation"]["is_confirmatory"] is False
 
 
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_artifacts_are_absent_in_dry_run(tmp_path) -> None:
     """A dry-run writes only the manifest/summary, never evaluation artifacts."""
     run = de.prepare_development_evaluation()
@@ -637,6 +657,7 @@ def test_artifacts_are_absent_in_dry_run(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # Source artifacts are never modified.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("baseline_v2", "rc1_generation")
 def test_frozen_inputs_are_never_written(executed) -> None:
     """The two source runs are read-only: only the candidate run dir may grow."""
     baseline_root = Path(de.BASELINE_EVALUATION_ROOT)

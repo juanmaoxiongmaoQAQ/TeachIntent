@@ -82,6 +82,7 @@ class FakeHy3Client:
 # ---------------------------------------------------------------------------
 # --dry-run
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_cli_dry_run_makes_no_api_call_and_prints_plan(capsys, monkeypatch) -> None:
     # Redirect any accidental result dir to tmp so the assertion is airtight.
     sentinel = FakeHy3Client("{}")
@@ -143,6 +144,7 @@ def test_cli_both_modes_fails_fast(capsys) -> None:
 # ---------------------------------------------------------------------------
 # --execute with fake client: exactly 30 first-call generations.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_cli_execute_runs_exactly_30_calls(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT", tmp_path)
@@ -162,6 +164,7 @@ def test_cli_execute_runs_exactly_30_calls(tmp_path, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # --execute with fake client: every call uses explicit v0.2-rc.1.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_cli_execute_uses_explicit_v0_2_rc1(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT", tmp_path)
@@ -192,6 +195,7 @@ def test_cli_execute_uses_explicit_v0_2_rc1(tmp_path, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # --execute failure path: no automatic retry.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_cli_execute_failure_does_not_retry(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT", tmp_path)
@@ -261,6 +265,7 @@ class _RecorderClient:
         )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_cli_execute_fixes_base_url_model_regardless_of_hy3_env(
     tmp_path, monkeypatch
 ) -> None:

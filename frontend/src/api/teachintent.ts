@@ -7,6 +7,8 @@ import type {
   IntentCompareResponse,
   LiveEvaluationResponse,
   LiveGenerationResponse,
+  BatonVoiceRenderResponse,
+  SegmentedBatonRenderResponse,
   WorkbenchResponse,
 } from "../types/teachintent";
 
@@ -54,8 +56,20 @@ export function evaluateSpeechPlan(
   return postJson<LiveEvaluationResponse>("/api/evaluate", request);
 }
 
+export function renderWithBatonVoice(sessionId: string): Promise<BatonVoiceRenderResponse> {
+  return postJson<BatonVoiceRenderResponse>("/api/render/batonvoice", {
+    session_id: sessionId,
+  });
+}
+
 export function compareIntents(
   request: IntentCompareRequest,
 ): Promise<IntentCompareResponse> {
   return postJson<IntentCompareResponse>("/api/compare-intents", request);
+}
+
+export function renderSegmentedBatonCandidate(sessionId: string): Promise<SegmentedBatonRenderResponse> {
+  return postJson<SegmentedBatonRenderResponse>("/api/render/batonvoice-segmented", {
+    session_id: sessionId,
+  });
 }

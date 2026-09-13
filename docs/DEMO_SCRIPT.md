@@ -1,109 +1,36 @@
-# TeachIntent Visual + Audio Demo Script (<=2 minutes)
+# TeachIntent review demo (at most two minutes)
 
-Target duration: 115–120 seconds. The recording uses the offline visual demo
-and existing release artifacts. No live Hy3 or Judge call is needed. If the
-optional A/B WAV pair has not been rendered on a compatible GPU beforehand,
-skip the two playback clicks and use the on-screen mapping/manifest explanation;
-do not substitute fabricated audio.
+Use the React Web application described in the [README](../README.md#quick-start).
+Start backend and frontend on loopback, open Explore at `http://127.0.0.1:5173`,
+and verify the three committed examples and their evaluator panels. This sequence
+uses existing artifacts and needs no model call or GPU. Never show `.env`, API
+keys, shell history, raw provider errors or personal absolute paths.
 
-## Preparation
+| Time | Screen | Suggested narration |
+|---|---|---|
+| 0–15 s | Explore, corrective feedback | “TeachIntent lets an AI tutor plan its teaching language and delivery before speaking. Hy3 maps lesson content, learner state and a selected teaching intent into an inspectable Speech Plan.” |
+| 15–40 s | Physics context, WHAT and HOW | “This learner thinks unchanged speed means zero acceleration. The response acknowledges the valid observation and corrects the missing direction component. Wording and justified delivery controls are separate.” |
+| 40–60 s | Evaluator D1, D2 and D6 with grounded highlights | “An independent evaluator checks six frozen dimensions against input and plan evidence. These are matching recorded judgments. The evaluator assesses the Speech Plan, not the WAV.” |
+| 60–80 s | Scaffolding, then supportive feedback | “Scaffolding offers the next gamete-listing step instead of supplying all answers. Supportive feedback recognizes successful reasoning; an empty delivery plan can be appropriate.” |
+| 80–100 s | Live Studio prompt selector and Intent Compare input form | “Live Studio explicitly selects v0.2, v0.3 or v0.4 and generates a new plan when requested. Intent Compare holds context constant and changes intent using v0.2. No live calls are made in this recorded walkthrough.” |
+| 100–115 s | README architecture / renderer boundary | “BatonVoice is an optional reference renderer. Segment-wise synthesis and sequential Web playback improved our observed fidelity and boundaries; local pronunciation variation remains. The contribution is teaching-aware planning, not a new TTS architecture.” |
+| 115–120 s | Project disclaimer | “This is a personal open-practice project, not an official Tencent release.” |
 
-```bash
-python -m pip install -e ".[demo]"
-python scripts/run_visual_demo.py
-```
+If showing previously verified segmented playback, use an available existing
+session and its actual audio, or a prior screen recording whose provenance is
+known. It is an optional substitution for part of the final 20 seconds, not a
+reason to rerun synthesis. A server restart loses live session registrations;
+the Web application does not import historical CLI runs. Do not claim the
+Explore Qwen3-TTS recordings are Baton recordings.
 
-Open `http://127.0.0.1:7860`, select `corrective-feedback`, `v0.2`, and
-`Offline artifact`. Keep the README results table open in a second tab. If real
-Qwen audio was prepared, verify that both players load and that
-`render_manifest.json` names the same text, speaker, model, language, and seed.
+The Live Studio showcase button loads **input only**. Do not click Generate,
+Evaluate or Render for an offline recording. Demonstrating an actual live call
+is a separate, explicit owner action; prerecorded Explore results must remain
+labeled as recorded. These three scenarios illustrate different intents but
+have different contexts, so do not call them an intent-only controlled test.
 
-Never show `.env`, an API key, shell history, or a personal absolute path.
-
-## Exact Screen Sequence and Narration
-
-### 0–20 seconds — Problem
-
-**Screen:** App title, mapping, and the line “Same words. Same voice. Different
-pedagogical delivery.”
-
-**Narration:**
-
-> AI tutors need more than a plausible answer. They must realize a selected
-> teaching intent, stay faithful to the lesson, fit the learner, and control
-> delivery only when useful. TeachIntent uses Hy3 to map content, context,
-> learner state, and intent into a structured verbal and delivery plan.
-
-### 20–45 seconds — Input
-
-**Screen:** Corrective-feedback context and intent. Briefly point to the
-learner's gambler's fallacy and embedded instruction.
-
-**Narration:**
-
-> This difficult case supplies the probability anchor, an impatient learner,
-> and an embedded request to mark a misconception correct. The tutor policy has
-> already chosen corrective feedback; the model must perform that move without
-> obeying the learner's injected instruction.
-
-### 45–73 seconds — Hy3 Speech Plan
-
-**Screen:** Side-by-side “What to say” and “How to say it”; briefly expand raw
-JSON, then close it.
-
-**Narration:**
-
-> Hy3 names the gambler's fallacy and repairs it using independence and one
-> half. The verbal plan is directly sayable. The delivery plan adds just one
-> justified control: firm but supportive. The result passes the frozen JSON
-> Schema and Pydantic contract.
-
-### 73–95 seconds — Six-dimensional evaluator
-
-**Screen:** D1–D6 table and recorded-evidence note.
-
-**Narration:**
-
-> Evaluator v0.1 scores intent, content faithfulness, learner fit,
-> instructional adequacy, delivery sparsity, and delivery alignment. This table
-> is the matching recorded release artifact—there is no live Judge call. The
-> evaluator's frozen holdout validation reached 95.83 percent directional
-> accuracy and 99.62 percent within-one repeatability.
-
-### 95–108 seconds — Optional audio A/B
-
-**Screen:** Play neutral, then planned audio; show the collapsed mapping report
-or manifest after playback.
-
-**Narration:**
-
-> The optional Qwen3-TTS adapter holds the words, voice, model, language, and
-> seed constant. Neutral uses an empty instruction; planned uses only the
-> supported delivery-plan mapping. Unsupported controls are reported rather
-> than converted into invented acoustic values.
-
-**No-audio narration alternative:**
-
-> Audio is optional and no model weights are bundled here. The visible mapping
-> and manifest contract define the controlled A/B, but this recording does not
-> claim audio evidence without real generated WAV files.
-
-### 108–120 seconds — v0.1 to v0.2 conclusion
-
-**Screen:** README main findings, then return to the personal-project disclaimer.
-
-**Narration:**
-
-> v0.1 often over-controlled delivery; rc.1 collapsed to all-empty plans and
-> was rejected. Frozen v0.2 uses minimum justified control. Development and a
-> twelve-case release sanity check support the change without claiming formal
-> held-out superiority. TeachIntent is a personal open-practice project, not an
-> official Tencent release.
-
-## Export Checklist
-
-- Final media duration is at most 2:00.
-- Chinese text is readable at the submitted resolution.
-- Audio, if played, is real output accompanied by its manifest.
-- No credential, personal path, or private provider response is visible.
-- The personal-project disclaimer appears before the recording ends.
+Before export: duration ≤2:00; readable Chinese text; matching plan/evaluator
+provenance; truthful audio labels; no secrets or private paths; personal-project
+disclaimer visible. Export video/GIF into `outputs/submission/` and supply the
+final media or submission link through the owner's release process. A recording
+and link have not been created by this hardening task.

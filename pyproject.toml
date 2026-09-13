@@ -31,6 +31,9 @@ tts = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "historical_artifacts(*runs): requires the named immutable historical runs (see docs/TESTING.md)",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/teachintent"]

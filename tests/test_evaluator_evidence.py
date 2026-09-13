@@ -203,7 +203,15 @@ def test_canonical_json_sorts_keys():
     obj = {"b": 1, "a": 2}
     # canonical: {"a":2,"b":1}
     assert is_grounded('{"a":2,"b":1}', obj)
-    assert not is_grounded('{"b":1,"a":2}', obj)
+    assert is_grounded('{"b":1,"a":2}', obj)
+
+
+def test_structured_json_formatting_and_subtree_grounding():
+    source = {"segment_overrides": [{"segment_id": "seg_01", "prosody": {"volume": "soft"}}]}
+    assert is_grounded('{\n  "segment_overrides": [{"segment_id":"seg_01", "prosody": {"volume": "soft"}}]\n}', source)
+    assert is_grounded('{"prosody":{"volume":"soft"}}', source)
+    assert not is_grounded('{"segment_overrides":[{"segment_id":"seg_01","prosody":{"volume":"loud"}}]}', source)
+    assert not is_grounded('{"segment_overrides":[{"segment_id":"seg_01","extra":true}]}', source)
 
 
 # ---------------------------------------------------------------------------

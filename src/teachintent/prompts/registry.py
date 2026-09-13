@@ -38,12 +38,18 @@ from .speech_plan_v0_2 import (
 )
 from .speech_plan_v0_2 import PROMPT_VERSION as PROMPT_VERSION_V0_2
 from .speech_plan_v0_2 import build_speech_plan_prompt as _build_v0_2
+from .speech_plan_v0_3 import PROMPT_VERSION as PROMPT_VERSION_V0_3
+from .speech_plan_v0_3 import build_speech_plan_prompt as _build_v0_3
+from .speech_plan_v0_4 import PROMPT_VERSION as PROMPT_VERSION_V0_4
+from .speech_plan_v0_4 import build_speech_plan_prompt as _build_v0_4
 
 __all__ = [
     "PROMPT_VERSION_V0_1",
     "PROMPT_VERSION_V0_2_RC1",
     "PROMPT_VERSION_V0_2_RC2",
     "PROMPT_VERSION_V0_2",
+    "PROMPT_VERSION_V0_3",
+    "PROMPT_VERSION_V0_4",
     "PARENT_PROMPT_VERSION_V0_2",
     "SpeechPlanPrompt",
     "UnknownPromptVersionError",
@@ -67,6 +73,8 @@ SPEECH_PLAN_PROMPTS: dict[str, tuple[str, Callable[[dict], SpeechPlanPrompt]]] =
     PROMPT_VERSION_V0_2_RC1: (PROMPT_VERSION_V0_2_RC1, _build_v0_2_rc1),
     PROMPT_VERSION_V0_2_RC2: (PROMPT_VERSION_V0_2_RC2, _build_v0_2_rc2),
     PROMPT_VERSION_V0_2: (PROMPT_VERSION_V0_2, _build_v0_2),
+    PROMPT_VERSION_V0_3: (PROMPT_VERSION_V0_3, _build_v0_3),
+    PROMPT_VERSION_V0_4: (PROMPT_VERSION_V0_4, _build_v0_4),
 }
 
 

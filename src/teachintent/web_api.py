@@ -9,7 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import app_service
+from . import segmented_web_service
 from .web_models import (
+    BatonVoiceRenderRequest,
+    BatonVoiceRenderResponse,
+    SegmentedBatonRenderRequest,
+    SegmentedBatonRenderResponse,
     EvaluateRequest,
     ExampleSummary,
     GenerateRequest,
@@ -63,7 +68,7 @@ def create_app() -> FastAPI:
         try:
             return app_service.generate_live_workbench(request)
         except app_service.LiveGenerationError as exc:
-            status_code = 400 if exc.failure_type == "input_validation_error" else 502
+            status_code = 400 if exc.failure_type in {"input_validation_error", "prompt_version_error"} else 502
             raise HTTPException(
                 status_code=status_code,
                 detail={
@@ -88,6 +93,39 @@ def create_app() -> FastAPI:
                     }
                 },
             ) from exc
+
+    @app.post("/api/render/batonvoice", response_model=BatonVoiceRenderResponse)
+    def render_batonvoice(request: BatonVoiceRenderRequest) -> BatonVoiceRenderResponse:
+        try:
+            return app_service.render_live_speech_plan(request.session_id)
+        except app_service.LiveSessionNotFound as exc:
+            raise HTTPException(status_code=404, detail={"error": {"type": "unknown_session", "message": str(exc)}}) from exc
+
+    @app.get("/api/live/{session_id}/batonvoice.wav")
+    def batonvoice_audio(session_id: str) -> FileResponse:
+        try:
+            path = app_service.resolve_live_batonvoice_audio_path(session_id)
+        except (app_service.LiveSessionNotFound, app_service.VoiceArtifactUnavailable) as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return FileResponse(path, media_type="audio/wav", filename="batonvoice.wav")
+
+    @app.post("/api/render/batonvoice-segmented", response_model=SegmentedBatonRenderResponse)
+    def render_batonvoice_segmented(request: SegmentedBatonRenderRequest) -> SegmentedBatonRenderResponse:
+        try:
+            return segmented_web_service.render_live_segmented(request.session_id)
+        except app_service.LiveSessionNotFound as exc:
+            raise HTTPException(status_code=404, detail="Unknown live session.") from exc
+        except segmented_web_service.SegmentedRenderBusy as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/live/{session_id}/batonvoice-segmented/{run_id}/{segment_id}.wav")
+    def segmented_audio(session_id: str, run_id: str, segment_id: str) -> FileResponse:
+        try:
+            path = segmented_web_service.resolve_segmented_audio(session_id, run_id, segment_id)
+        except (app_service.LiveSessionNotFound, app_service.VoiceArtifactUnavailable) as exc:
+            raise HTTPException(status_code=404, detail="Segment audio is unavailable.") from exc
+        return FileResponse(path, media_type="audio/wav", filename=path.name,
+                            headers={"Cache-Control": "no-store"})
 
     @app.post("/api/compare-intents", response_model=IntentCompareResponse)
     def compare_intents(request: IntentCompareRequest) -> IntentCompareResponse:

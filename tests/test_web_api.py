@@ -10,6 +10,8 @@ from teachintent import app_service
 from teachintent.evaluator import DIMENSION_IDS
 from teachintent.generator import SpeechPlanGenerationResult
 from teachintent.web_api import create_app
+from teachintent.renderers.batonvoice import BatonVoiceRenderResult
+from teachintent.web_models import GenerateRequest
 
 
 FORBIDDEN = (
@@ -169,6 +171,201 @@ def test_health(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "application": "TeachIntent"}
+
+
+@pytest.mark.parametrize("status", ["success", "error", "unavailable"])
+def test_baton_executor_diagnostics_are_exposed_without_changing_status(client, monkeypatch, tmp_path, status):
+    from dataclasses import replace
+    from teachintent.renderers.batonvoice import BatonVoiceRenderError, BatonVoiceUnavailable
+
+    diagnostics = {
+        "input_text_sha256": "a" * 64,
+        "generation_finish_reason": "stop" if status == "success" else None,
+        "generation_stop_reason": None,
+        "speech_token_roundtrip_match": True if status == "success" else None,
+    }
+
+    class Renderer(_AvailableRenderer):
+        def render(self, **kwargs):
+            if status == "error":
+                raise BatonVoiceRenderError("render failed", executor_diagnostics=diagnostics)
+            if status == "unavailable":
+                raise BatonVoiceUnavailable("runtime unavailable", executor_diagnostics=diagnostics)
+            return replace(super().render(**kwargs), executor_diagnostics=diagnostics)
+
+    monkeypatch.setattr(app_service, "BatonVoiceRenderer", Renderer)
+    monkeypatch.setattr(app_service, "_default_generation_runner", lambda *_args: _generation_result())
+    monkeypatch.setenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", str(tmp_path))
+    generated = client.post("/api/generate", json=VALID_GENERATE_REQUEST).json()
+    response = client.post("/api/render/batonvoice", json={"session_id": generated["session_id"]})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == status
+    assert payload["render_metadata"]["executor_diagnostics"] == diagnostics
+    if status == "success":
+        assert payload["render_metadata"]["mapping_diagnostics"]
+        assert payload["audio_url"].endswith("/batonvoice.wav")
+        session = app_service.LIVE_SESSION_STORE.get(generated["session_id"])
+        assert session.batonvoice_render_metadata["executor_diagnostics"] == diagnostics
+    else:
+        assert payload["audio_url"] is None
+
+
+@pytest.mark.parametrize("version", [None, "v0.2", "v0.3", "v0.4"])
+def test_prompt_selection_through_generation_evaluation_and_render(
+    client, monkeypatch, tmp_path, version,
+):
+    from types import SimpleNamespace
+
+    from teachintent.prompts import build_speech_plan_prompt_for_version
+    from teachintent.renderers.batonvoice import quantitative_plan_from_speech_plan
+
+    completions, evaluations, renders = [], [], []
+
+    class FakeClient:
+        model = "offline-hy3"
+
+        def complete(self, **kwargs):
+            completions.append(kwargs)
+            return SimpleNamespace(
+                content=json.dumps(VALID_PLAN, ensure_ascii=False),
+                reported_model=self.model,
+            )
+
+    def evaluate(input_doc, raw, context):
+        evaluations.append((input_doc, raw, context.prompt_version))
+        return {"artifact": _evaluation_artifact()}
+
+    class FakeRenderer:
+        def status(self):
+            return {"available": True, "renderer": "batonvoice"}
+
+        def render(self, *, text, plan, output_path):
+            renders.append((text, plan))
+            return BatonVoiceRenderResult(output_path, 24000, 1.0, 1, 0.2, False, False)
+
+    monkeypatch.setattr(app_service.demo, "load_dotenv", lambda *_args: None)
+    monkeypatch.setattr(app_service.demo.Hy3Client, "from_env", lambda: FakeClient())
+    monkeypatch.setattr(app_service, "_default_evaluation_runner", evaluate)
+    monkeypatch.setattr(app_service, "BatonVoiceRenderer", FakeRenderer)
+    monkeypatch.setenv("BATONVOICE_SPEECH_SPEED", "0.85")
+    monkeypatch.setenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", str(tmp_path))
+    request = dict(VALID_GENERATE_REQUEST)
+    if version is not None:
+        request["prompt_version"] = version
+    response = client.post("/api/generate", json=request)
+    assert response.status_code == 200
+    generated = response.json()
+    expected_version = version or "v0.2"
+    prompt = build_speech_plan_prompt_for_version(generated["input"], expected_version)
+    assert completions == [{"system": prompt.system, "user": prompt.user, "temperature": 0.0}]
+    assert generated["generation"]["prompt_version"] == expected_version
+    session_id = generated["session_id"]
+    session = app_service.LIVE_SESSION_STORE.get(session_id)
+    assert session.prompt_version == expected_version
+    assert session.plan_doc == generated["speech_plan"] == VALID_PLAN
+
+    evaluated_response = client.post("/api/evaluate", json={"session_id": session_id})
+    assert evaluated_response.status_code == 200
+    assert evaluated_response.json()["session_id"] == session_id
+    assert evaluated_response.json()["evaluation"]["available"] is True
+    assert evaluations == [(session.input_doc, session.raw_response, expected_version)]
+    rendered_response = client.post("/api/render/batonvoice", json={"session_id": session_id})
+    assert rendered_response.status_code == 200
+    rendered = rendered_response.json()
+    assert rendered["status"] == "success"
+    assert rendered["session_id"] == session_id
+    assert rendered["render_metadata"]["speech_speed"] == 0.85
+    assert len(rendered["render_metadata"]["mapping_diagnostics"]) == 1
+    assert renders == [(
+        VALID_PLAN["verbal_plan"]["segments"][0]["text"],
+        quantitative_plan_from_speech_plan(session.plan_doc),
+    )]
+    assert len(completions) == 1
+
+
+class _AvailableRenderer:
+    def status(self):
+        return {"available": True, "renderer": "batonvoice"}
+
+    def render(self, *, text, plan, output_path):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"wav")
+        return BatonVoiceRenderResult(output_path, 24000, 1.0, 1, 0.2, False, False)
+
+
+def test_batonvoice_render_endpoint_uses_existing_session(tmp_path, monkeypatch):
+    store = app_service.LiveSessionStore()
+    monkeypatch.setattr(app_service, "LIVE_SESSION_STORE", store)
+    monkeypatch.setenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", str(tmp_path))
+    generated = app_service.generate_live_workbench(
+        GenerateRequest.model_validate(VALID_GENERATE_REQUEST),
+        session_store=store,
+        generation_runner=lambda _input, _version: _generation_result(),
+    )
+    result = app_service.render_live_speech_plan(
+        generated.session_id, session_store=store, renderer=_AvailableRenderer()
+    )
+    assert result.status == "success"
+    assert result.renderer == "batonvoice"
+    assert result.audio_url.endswith("/batonvoice.wav")
+    assert result.render_metadata["sample_rate"] == 24000
+
+
+def test_batonvoice_unavailable_is_structured(tmp_path):
+    store = app_service.LiveSessionStore()
+    generated = app_service.generate_live_workbench(
+        GenerateRequest.model_validate(VALID_GENERATE_REQUEST),
+        session_store=store,
+        generation_runner=lambda _input, _version: _generation_result(),
+    )
+
+    class Unavailable:
+        def status(self):
+            return {"available": False, "renderer": "batonvoice", "reason": "GPU unavailable"}
+
+    result = app_service.render_live_speech_plan(
+        generated.session_id, session_store=store, renderer=Unavailable()
+    )
+    assert result.status == "unavailable"
+    assert result.audio_url is None
+
+
+@pytest.mark.parametrize("configured_root", [None, "outputs/custom", "outside", "symlink"])
+def test_single_pass_web_outputs_stay_in_project(tmp_path, monkeypatch, configured_root):
+    project = tmp_path / "TeachIntent"
+    project.mkdir()
+    monkeypatch.setattr(app_service, "REPO_ROOT", project)
+    monkeypatch.delenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", raising=False)
+    if configured_root == "outside":
+        monkeypatch.setenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", str(tmp_path / "outside"))
+    elif configured_root == "symlink":
+        (project / "outputs").symlink_to(tmp_path, target_is_directory=True)
+    elif configured_root:
+        monkeypatch.setenv("TEACHINTENT_BATONVOICE_OUTPUT_DIR", configured_root)
+    store = app_service.LiveSessionStore()
+    generated = app_service.generate_live_workbench(
+        GenerateRequest.model_validate(VALID_GENERATE_REQUEST), session_store=store,
+        generation_runner=lambda _input, _version: _generation_result(),
+    )
+    result = app_service.render_live_speech_plan(
+        generated.session_id, session_store=store, renderer=_AvailableRenderer(),
+    )
+    if configured_root in {"outside", "symlink"}:
+        assert result.status == "error"
+        assert result.audio_url is None
+        assert not list(tmp_path.rglob("*.wav"))
+    else:
+        assert result.status == "success"
+        audio = app_service.resolve_live_batonvoice_audio_path(generated.session_id, session_store=store)
+        assert audio.is_relative_to(project / "outputs")
+        # A file replaced by a project-external symlink must not be served.
+        outside = tmp_path / "outside.wav"
+        outside.write_bytes(b"private")
+        audio.unlink()
+        audio.symlink_to(outside)
+        with pytest.raises(app_service.VoiceArtifactUnavailable):
+            app_service.resolve_live_batonvoice_audio_path(generated.session_id, session_store=store)
 
 
 def test_examples(client: TestClient) -> None:

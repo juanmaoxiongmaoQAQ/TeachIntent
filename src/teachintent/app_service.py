@@ -8,11 +8,13 @@ It does not import Gradio, FastAPI, or git-ignored historical ``results/``.
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from copy import deepcopy
 import json
+import os
 from pathlib import Path
 import re
+from threading import Lock
 from typing import Any, Callable, Literal
 from uuid import uuid4
 
@@ -26,6 +28,13 @@ from .evaluator_diagnostic.confirmatory_runner import (
     build_frozen_judge_config,
 )
 from .generator import GeneratorError, SpeechPlanGenerationResult
+from .prompts.registry import get_speech_plan_prompt_version
+from .renderers import (
+    BatonVoiceRenderError,
+    BatonVoiceRenderer,
+    BatonVoiceUnavailable,
+    quantitative_plan_from_speech_plan,
+)
 from .models import TeachIntentInput
 from .validators import iter_input_errors
 from .web_models import (
@@ -126,6 +135,10 @@ class LiveSession:
     prompt_version: str
     generation: GenerationMetadata
     evaluation: EvaluationResponse | None = None
+    batonvoice_audio_path: Path | None = None
+    batonvoice_render_metadata: dict[str, Any] | None = None
+    batonvoice_segmented_run: dict[str, Any] | None = None
+    batonvoice_segmented_lock: Any = field(default_factory=Lock, repr=False)
 
 
 class LiveSessionStore:
@@ -658,7 +671,11 @@ def generate_live_workbench(
     validate_live_input_doc(input_doc)
     runner = generation_runner or _default_generation_runner
     try:
-        result = runner(input_doc, DEFAULT_PROMPT_VERSION)
+        try:
+            prompt_version = get_speech_plan_prompt_version(request.prompt_version)
+        except ValueError as exc:
+            raise LiveGenerationError("prompt_version_error", str(exc)) from exc
+        result = runner(input_doc, prompt_version)
     except GeneratorError as exc:
         raise LiveGenerationError(
             type(exc).__name__,
@@ -949,6 +966,101 @@ def evaluate_live_session(
     return LiveEvaluationResponse(session_id=session_id, evaluation=session.evaluation)
 
 
+def render_live_speech_plan(
+    session_id: str,
+    *,
+    session_store: LiveSessionStore = LIVE_SESSION_STORE,
+    renderer: BatonVoiceRenderer | None = None,
+) -> Any:
+    """Render an already-generated Speech Plan with optional BatonVoice."""
+    from .web_models import BatonVoiceRenderResponse
+
+    session = session_store.get(session_id)
+    renderer = renderer or BatonVoiceRenderer()
+    status = renderer.status()
+    if not status["available"]:
+        return BatonVoiceRenderResponse(
+            session_id=session_id, status="unavailable", reason=status.get("reason"),
+            render_metadata=status,
+        )
+    try:
+        plan = quantitative_plan_from_speech_plan(session.plan_doc)
+        diagnostics = _batonvoice_mapping_diagnostics(session.plan_doc, plan)
+        try:
+            speech_speed = float(os.environ.get("BATONVOICE_SPEECH_SPEED", "1.0"))
+        except ValueError:
+            speech_speed = None
+        output_root = Path(os.environ.get("TEACHINTENT_BATONVOICE_OUTPUT_DIR") or REPO_ROOT / "outputs")
+        if not output_root.is_absolute():
+            output_root = REPO_ROOT / output_root
+        output_path = (output_root / "teachintent-batonvoice" / f"{session_id}.wav").resolve()
+        if not output_path.is_relative_to(REPO_ROOT.resolve()):
+            raise ValueError("BatonVoice output must remain inside the TeachIntent project.")
+        result = renderer.render(
+            text=_verbal_text(session.plan_doc), plan=plan, output_path=output_path
+        )
+    except BatonVoiceUnavailable as exc:
+        return BatonVoiceRenderResponse(
+            session_id=session_id, status="unavailable", reason=str(exc),
+            render_metadata={"executor_diagnostics": exc.executor_diagnostics}
+            if exc.executor_diagnostics is not None else {},
+        )
+    except (BatonVoiceRenderError, ValueError) as exc:
+        return BatonVoiceRenderResponse(
+            session_id=session_id, status="error", reason=sanitize_error_summary(exc),
+            render_metadata={"executor_diagnostics": exc.executor_diagnostics}
+            if getattr(exc, "executor_diagnostics", None) is not None else {},
+        )
+    session.batonvoice_audio_path = result.output_path
+    render_metadata = result.to_dict()
+    render_metadata["mapping_diagnostics"] = diagnostics
+    render_metadata["speech_speed"] = speech_speed
+    session.batonvoice_render_metadata = render_metadata
+    return BatonVoiceRenderResponse(
+        session_id=session_id,
+        status="success",
+        audio_id=session_id,
+        audio_url=f"/api/live/{session_id}/batonvoice.wav",
+        render_metadata=render_metadata,
+    )
+
+
+def _batonvoice_mapping_diagnostics(
+    speech_plan: dict[str, Any], quantitative_plan: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Return safe, render-local mapping diagnostics without raw credentials."""
+    segments = speech_plan.get("verbal_plan", {}).get("segments", [])
+    delivery = speech_plan.get("delivery_plan", {})
+    global_prosody = delivery.get("global", {}).get("prosody", {})
+    overrides = {item.get("segment_id"): item for item in delivery.get("segment_overrides", [])}
+    diagnostics = []
+    for segment, mapped in zip(segments, quantitative_plan):
+        override = overrides.get(segment.get("segment_id"), {})
+        diagnostics.append({
+            "segment_id": segment.get("segment_id"),
+            "text": segment.get("text"),
+            "delivery": {
+                "global_prosody": global_prosody,
+                "segment_override": override.get("prosody", {}),
+                "prominence_targets": override.get("prominence_targets", []),
+            },
+            "mapped": {key: mapped[key] for key in (
+                "pitch_mean", "energy_rms", "pitch_slope", "energy_slope", "spectral_centroid"
+            )},
+        })
+    return diagnostics
+
+
+def resolve_live_batonvoice_audio_path(
+    session_id: str, *, session_store: LiveSessionStore = LIVE_SESSION_STORE
+) -> Path:
+    session = session_store.get(session_id)
+    path = session.batonvoice_audio_path
+    if path is None or not path.resolve().is_relative_to(REPO_ROOT.resolve()) or not path.is_file():
+        raise VoiceArtifactUnavailable("BatonVoice audio is unavailable.")
+    return path
+
+
 __all__ = [
     "AppServiceError",
     "DEFAULT_PROMPT_VERSION",
@@ -973,6 +1085,8 @@ __all__ = [
     "classify_evidence_source",
     "compare_live_intents",
     "evaluate_live_session",
+    "render_live_speech_plan",
+    "resolve_live_batonvoice_audio_path",
     "extract_dimension_evidence",
     "generate_live_workbench",
     "get_example",

@@ -1,5 +1,27 @@
 # Codex Handoff — TeachIntent
 
+> Final release / Showcase update (2026-09-14): `/showcase` presents three
+> existing v0.2 public examples, six-dimension plan evidence and approved
+> synthetic Qwen A/B audio. `/live`, `/explore`, `/compare` are directly
+> addressable. `scripts/start_showcase.sh` / `stop_showcase.sh` manage only
+> owned processes and use `outputs/showcase-runtime/`. Source publication and
+> the six WAVs are owner-approved; two retired K0 scripts remain untracked.
+> See `docs/FINAL_STAGING_PLAN.md` for the exact release inventory and
+> `docs/GROUP_MEETING_SHOWCASE.md` for the short demonstration flow.
+
+## Release handoff update — 2026-09-14
+
+The project owner has stopped Baton/TTS research and requested release hardening.
+Use [README](../README.md), [release audit](RELEASE_AUDIT.md),
+[testing boundaries](TESTING.md) and [demo guide](DEMO_SCRIPT.md) for the current
+delivery state. Earlier GPU/browser validation is owner-reported evidence;
+this release task performs offline checks only. Do not tune synthesis, create
+another prompt version, regenerate evidence, commit or push without a new task.
+Existing dirty work and historical artifacts must remain intact.
+
+The dated snapshot below is historical, including any old pending-commit or
+next-experiment instructions. It does not supersede this release handoff.
+
 Precise snapshot of the repository at the moment of handoff from WorkBuddy.
 Generated 2026-09-01. Re-verify before acting; the repo is the source of truth.
 

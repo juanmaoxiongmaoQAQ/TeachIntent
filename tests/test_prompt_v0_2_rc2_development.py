@@ -102,6 +102,7 @@ class FakeHy3Client:
 # ---------------------------------------------------------------------------
 # 1. rc.2 is passed EXPLICITLY to generate_speech_plan.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_is_passed_explicitly_to_generate_speech_plan(
     monkeypatch, tmp_path
 ) -> None:
@@ -141,6 +142,7 @@ def test_unsupported_prompt_version_is_rejected_before_any_work() -> None:
 # ---------------------------------------------------------------------------
 # 2. The rc.1 path is still available (and remains the default).
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_default_prompt_version_remains_rc1(monkeypatch, tmp_path) -> None:
     captured: list[str] = []
     real_fn = dr.generate_speech_plan
@@ -160,6 +162,7 @@ def test_default_prompt_version_remains_rc1(monkeypatch, tmp_path) -> None:
     assert manifest["prompt_version"] == CANDIDATE_PROMPT_VERSION
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc1_still_runs_when_selected_explicitly(monkeypatch, tmp_path) -> None:
     captured: list[str] = []
     real_fn = dr.generate_speech_plan
@@ -184,6 +187,7 @@ def test_rc1_still_runs_when_selected_explicitly(monkeypatch, tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # 3. Same 30-case population; inputs unchanged.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_thirty_cases_exact_match_canonical_population() -> None:
     cases = discover_canonical_inputs()
     report = validate_development_inputs(cases)
@@ -196,6 +200,7 @@ def test_thirty_cases_exact_match_canonical_population() -> None:
     assert {c.case_id for c in cases} == expected
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c", "rc1_generation")
 def test_rc2_uses_inputs_identical_to_the_finished_rc1_run() -> None:
     """The rc.2 population is byte-identical to the inputs the rc.1 run used."""
     assert RC1_RUN_DIR.is_dir(), "the finished rc.1 run must remain on disk"
@@ -207,6 +212,7 @@ def test_rc2_uses_inputs_identical_to_the_finished_rc1_run() -> None:
         assert stored == case.input_doc, f"input drift for {case.case_id}"
 
 
+@pytest.mark.historical_artifacts("rc1_generation")
 def test_rc1_run_artifacts_are_intact() -> None:
     """The rc.1 run is read-only: still 30 cases, still rc.1, still present."""
     manifest = json.loads(
@@ -234,6 +240,7 @@ def test_rc2_results_root_is_separate_from_rc1() -> None:
     assert DEVELOPMENT_RESULTS_ROOT.name == "prompt_v0_2_rc1_development"
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_run_writes_into_the_rc2_results_root(monkeypatch, tmp_path) -> None:
     # Point the rc.2 root at tmp_path so the real results/ tree is untouched.
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT_RC2", tmp_path)
@@ -247,6 +254,7 @@ def test_rc2_run_writes_into_the_rc2_results_root(monkeypatch, tmp_path) -> None
     assert len(list((run_dir / "cases").iterdir())) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc1_run_still_writes_into_the_rc1_results_root(monkeypatch, tmp_path) -> None:
     """The rc.1 path keeps using the rc.1 root (its historical monkeypatch hook)."""
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT", tmp_path)
@@ -259,6 +267,7 @@ def test_rc1_run_still_writes_into_the_rc1_results_root(monkeypatch, tmp_path) -
     assert len(list((tmp_path / manifest["run_id"] / "cases").iterdir())) == 30
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_artifact_layout_is_complete(tmp_path) -> None:
     manifest = run_development_batch(
         FakeHy3Client(),
@@ -282,6 +291,7 @@ def test_rc2_artifact_layout_is_complete(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # 5. Metadata records rc.2 and the fixed experimental condition.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_metadata_records_rc2(tmp_path) -> None:
     manifest = run_development_batch(
         FakeHy3Client(),
@@ -306,6 +316,7 @@ def test_metadata_records_rc2(tmp_path) -> None:
     assert manifest["actual_conditions"]["self_repair"] is False
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_prompt_artifact_is_the_real_rc2_prompt(tmp_path) -> None:
     manifest = run_development_batch(
         FakeHy3Client(),
@@ -331,6 +342,7 @@ def _mixed_client(count: int, delivery: dict) -> FakeHy3Client:
     return FakeHy3Client(plans=plans)
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_delivery_distribution_counts_empty_and_non_empty(tmp_path) -> None:
     client = _mixed_client(7, {"attitudinal_tone": "reassuring but corrective"})
     manifest = run_development_batch(
@@ -346,6 +358,7 @@ def test_delivery_distribution_counts_empty_and_non_empty(tmp_path) -> None:
     assert len(dist["non_empty_case_ids"]) == 7
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_delivery_distribution_non_empty_case_ids_are_correct(tmp_path) -> None:
     cases = discover_canonical_inputs()
     # Mark the first 7 cases (block order A, B, C) as non-empty.
@@ -364,6 +377,7 @@ def test_delivery_distribution_non_empty_case_ids_are_correct(tmp_path) -> None:
     )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_delivery_distribution_breakdown_by_intent(tmp_path) -> None:
     cases = discover_canonical_inputs()
     client = _mixed_client(7, {"attitudinal_tone": "reassuring but corrective"})
@@ -394,6 +408,7 @@ def test_delivery_distribution_breakdown_by_intent(tmp_path) -> None:
         )
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_all_empty_run_is_reported_as_full_collapse(tmp_path) -> None:
     """Reproduces the rc.1 failure mode: 30/30 empty, 0 non-empty."""
     manifest = run_development_batch(
@@ -409,6 +424,7 @@ def test_all_empty_run_is_reported_as_full_collapse(tmp_path) -> None:
     assert all(b["empty"] == b["total"] for b in dist["by_intent"].values())
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_failed_generation_is_not_counted_as_empty(tmp_path) -> None:
     """A case with no parsed plan goes to without_parsed_plan, never to empty."""
     client = FakeHy3Client(
@@ -450,6 +466,7 @@ def test_summarize_delivery_distribution_is_pure_and_faithful() -> None:
 # ---------------------------------------------------------------------------
 # 9. No retry.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_failure_does_not_retry(tmp_path) -> None:
     client = FakeHy3Client(
         raise_exc=Hy3APIError("Hy3 API returned HTTP 503", status_code=503)
@@ -464,6 +481,7 @@ def test_rc2_failure_does_not_retry(tmp_path) -> None:
     assert all(c["outcome"] == "Hy3APIError" for c in manifest["cases"])
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_success_makes_exactly_30_calls(tmp_path) -> None:
     client = FakeHy3Client()
     run_development_batch(
@@ -475,6 +493,7 @@ def test_rc2_success_makes_exactly_30_calls(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 # 10. Dry-run makes no API call.
 # ---------------------------------------------------------------------------
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_dry_run_makes_no_api_call_and_prints_plan(capsys) -> None:
     sentinel = FakeHy3Client("{}")
     summary = run_development_batch(
@@ -496,6 +515,7 @@ def test_rc2_dry_run_makes_no_api_call_and_prints_plan(capsys) -> None:
     assert "No API call was made." in out
 
 
+@pytest.mark.historical_artifacts("pilot_a", "pilot_b", "pilot_c")
 def test_rc2_dry_run_writes_no_artifacts(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(dr, "DEVELOPMENT_RESULTS_ROOT_RC2", tmp_path)
 

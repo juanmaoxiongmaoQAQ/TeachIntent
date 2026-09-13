@@ -228,7 +228,7 @@ def test_v0_2_rc1_system_prompt_is_locked() -> None:
 # ---------------------------------------------------------------------------
 def test_registry_lists_all_versions_and_defaults_to_v0_1() -> None:
     versions = list_speech_plan_prompt_versions()
-    assert versions == ["v0.1", "v0.2", "v0.2-rc.1", "v0.2-rc.2"]
+    assert versions == ["v0.1", "v0.2", "v0.2-rc.1", "v0.2-rc.2", "v0.3", "v0.4"]
     assert DEFAULT_PROMPT_VERSION == "v0.1"
 
 

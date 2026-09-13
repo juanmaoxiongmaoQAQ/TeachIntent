@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import uvicorn
+from dotenv import load_dotenv
 
 
 def main() -> int:
@@ -14,6 +16,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
     uvicorn.run(
         "teachintent.web_api:app",
         host=args.host,

@@ -166,8 +166,49 @@ def is_grounded(evidence_text: str, resolved_value: Any) -> bool:
         return evidence_text in resolved_value
     if isinstance(resolved_value, bool) or isinstance(resolved_value, (int, float)) or resolved_value is None:
         return evidence_text == canonical_scalar_text(resolved_value)
-    # object or array
-    return evidence_text in canonical_json_text(resolved_value)
+    # Structured evidence is compared as JSON when the complete evidence text
+    # parses to an object/array. This makes formatting and object key order
+    # irrelevant while retaining strict value/key and array-order checks.
+    if isinstance(resolved_value, (dict, list)):
+        try:
+            parsed = json.loads(evidence_text)
+        except (TypeError, json.JSONDecodeError):
+            parsed = None
+        if isinstance(parsed, (dict, list)):
+            if _structured_contains(resolved_value, parsed):
+                return True
+        # Preserve the documented support for canonical JSON fragments such as
+        # ``"field": value``; non-JSON fragments remain exact canonical matches.
+        return evidence_text in canonical_json_text(resolved_value)
+    return False
+
+
+def _structured_contains(source: Any, evidence: Any) -> bool:
+    """Strict JSON containment for parsed object/array evidence.
+
+    Objects may cite an exact-keyed subtree; arrays require the evidence array
+    to be an order-preserving contiguous slice. Scalars are compared exactly.
+    No coercion, whitespace stripping, or fuzzy text matching is performed.
+    """
+    if isinstance(source, dict) and isinstance(evidence, dict):
+        direct = all(key in source and _structured_contains(source[key], value)
+                     for key, value in evidence.items())
+        if direct:
+            return True
+        return any(_structured_contains(value, evidence) for value in source.values())
+    if isinstance(source, list) and isinstance(evidence, list):
+        if len(evidence) > len(source):
+            return False
+        return any(
+            all(_structured_contains(source[i + offset], value)
+                for offset, value in enumerate(evidence))
+            for i in range(len(source) - len(evidence) + 1)
+        )
+    if isinstance(source, list) and isinstance(evidence, dict):
+        return any(_structured_contains(item, evidence) for item in source)
+    if isinstance(source, bool) or isinstance(evidence, bool):
+        return type(source) is type(evidence) and source == evidence
+    return type(source) is type(evidence) and source == evidence
 
 
 def validate_evidence(

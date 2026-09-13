@@ -124,6 +124,8 @@ def test_formal_v0_2_is_explicitly_selectable_and_default_stays_v0_1() -> None:
         "v0.2",
         "v0.2-rc.1",
         "v0.2-rc.2",
+        "v0.3",
+        "v0.4",
     ]
     assert build_speech_plan_prompt_for_version(_doc()) == build_speech_plan_prompt(
         _doc()

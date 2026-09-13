@@ -121,6 +121,7 @@ class GenerateRequest(BaseModel):
     knowledge_state: str
     affective_state: str | None = None
     pedagogical_intent: PedagogicalIntent
+    prompt_version: str = "v0.2"
 
 
 class GenerationMetadata(BaseModel):
@@ -146,6 +147,71 @@ class EvaluateRequest(BaseModel):
 class LiveEvaluationResponse(BaseModel):
     session_id: str
     evaluation: EvaluationResponse
+
+
+class BatonVoiceRenderRequest(BaseModel):
+    session_id: str
+
+
+class SegmentedBatonRenderRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    session_id: str
+
+
+class SegmentedSamplingParameters(BaseModel):
+    temperature: float | None = None
+    top_p: float | None = None
+    top_k: int | None = None
+    max_tokens: int | None = None
+    repetition_penalty: float | None = None
+    stop_token_ids: list[int] | None = None
+
+
+class SegmentedExecutorDiagnostics(BaseModel):
+    generation_finish_reason: str | None = None
+    generation_stop_reason: str | int | None = None
+    generation_token_count: int | None = None
+    is_truncated: bool | None = None
+    raw_speech_token_count: int | None = None
+    extracted_speech_token_count: int | None = None
+    speech_token_roundtrip_match: bool | None = None
+    speech_token_roundtrip_first_mismatch: int | None = None
+    sampling_parameters: SegmentedSamplingParameters
+
+
+class SegmentedBatonSegment(BaseModel):
+    segment_id: str
+    order: int
+    status: Literal["success", "failed", "not_run", "interrupted"]
+    audio_url: str | None = None
+    duration_seconds: float | None = None
+    text_sha256: str
+    text_char_count: int
+    mapped: dict[str, float]
+    mapping_diagnostics: dict[str, Any]
+    executor_diagnostics: SegmentedExecutorDiagnostics
+    failure_reasons: list[str] = Field(default_factory=list)
+
+
+class SegmentedBatonRenderResponse(BaseModel):
+    session_id: str
+    status: Literal["success", "partial_failure", "failed", "interrupted"]
+    renderer: Literal["batonvoice_segmented"] = "batonvoice_segmented"
+    run_id: str | None = None
+    speech_speed: float | None = None
+    manifest_metadata: dict[str, Any] = Field(default_factory=dict)
+    segments: list[SegmentedBatonSegment] = Field(default_factory=list)
+    reason: str | None = None
+
+
+class BatonVoiceRenderResponse(BaseModel):
+    session_id: str
+    status: Literal["success", "unavailable", "error"]
+    renderer: Literal["batonvoice"] = "batonvoice"
+    audio_url: str | None = None
+    audio_id: str | None = None
+    render_metadata: dict[str, Any] = Field(default_factory=dict)
+    reason: str | None = None
 
 
 class IntentCompareRequest(BaseModel):

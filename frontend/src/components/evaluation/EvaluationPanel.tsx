@@ -32,6 +32,9 @@ export function EvaluationPanel({
 
   return (
     <Panel title="Evaluation">
+      <p className="mb-3 text-sm text-slate-600">
+        Evaluates the Speech Plan and its grounded evidence, not the audio.
+      </p>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge tone="accent">
           {mode === "recorded"

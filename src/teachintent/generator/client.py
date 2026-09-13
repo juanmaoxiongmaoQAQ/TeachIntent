@@ -38,6 +38,7 @@ class Hy3Completion:
     content: str
     finish_reason: str | None
     reported_model: str | None  # model name AS RETURNED BY THE API (may be None)
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 @runtime_checkable
@@ -115,7 +116,11 @@ class Hy3Client:
         )
 
     def complete(
-        self, system: str, user: str, *, temperature: float = 0.0
+        self, system: str, user: str, *, temperature: float = 0.0,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: dict[str, Any] | str | None = None,
+        parallel_tool_calls: bool | None = None,
+        provider: dict[str, Any] | None = None,
     ) -> Hy3Completion:
         """Call Hy3 and return the completion. Always sends ``temperature`` explicitly."""
         payload: dict[str, Any] = {
@@ -128,6 +133,14 @@ class Hy3Client:
         }
         if self._response_format is not None:
             payload["response_format"] = self._response_format
+        if tools is not None:
+            payload["tools"] = tools
+        if tool_choice is not None:
+            payload["tool_choice"] = tool_choice
+        if parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = parallel_tool_calls
+        if provider is not None:
+            payload["provider"] = provider
 
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -183,21 +196,26 @@ class Hy3Client:
                 response_text=response_text,
             )
         content = message.get("content")
+        tool_calls = message.get("tool_calls")
         if not isinstance(content, str) or not content.strip():
-            finish_reason = first.get("finish_reason")
-            hint = (
-                f" (finish_reason={finish_reason!r})"
-                if finish_reason is not None
-                else ""
-            )
-            raise Hy3APIError(
-                f"Hy3 API response choices[0].message.content is missing or empty{hint}",
-                status_code=response.status_code,
-                response_text=response_text,
-            )
+            if isinstance(tool_calls, list) and tool_calls:
+                content = ""
+            else:
+                finish_reason = first.get("finish_reason")
+                hint = (
+                    f" (finish_reason={finish_reason!r})"
+                    if finish_reason is not None
+                    else ""
+                )
+                raise Hy3APIError(
+                    f"Hy3 API response choices[0].message.content is missing or empty{hint}",
+                    status_code=response.status_code,
+                    response_text=response_text,
+                )
 
         return Hy3Completion(
             content=content,
             finish_reason=first.get("finish_reason"),
             reported_model=data.get("model"),
+            tool_calls=message.get("tool_calls"),
         )
