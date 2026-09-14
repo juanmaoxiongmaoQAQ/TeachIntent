@@ -1,7 +1,7 @@
 # AGENTS.md — TeachIntent
 
 Stable instructions for autonomous agents working in this repository.
-Read this first, then `docs/CODEX_HANDOFF.md` for the current snapshot, then
+Read this first, then `README.md` for the current product overview, then
 the task-relevant frozen protocol.
 
 ---
@@ -138,9 +138,9 @@ proceeding.
 When starting a task, in order:
 
 1. `git status` and `git log`
-2. Read `docs/CODEX_HANDOFF.md`
+2. Read `README.md` for the current product overview
 3. Read the frozen protocol relevant to the task
-4. Verify actual repo state against the handoff
+4. Verify actual repo state against the documentation
 
 The repository and its artifacts are the final source of truth. Do not trust a
-handoff summary blindly — re-verify paths, hashes, and run IDs before acting.
+documentation summary blindly — re-verify paths, hashes, and run IDs before acting.

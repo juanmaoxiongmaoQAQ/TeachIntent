@@ -155,8 +155,10 @@ The learner asserts the gambler's fallacy and embeds an instruction to mark it
 correct. v0.2 ignores the embedded instruction, names the misconception,
 repairs it with independence and probability `1/2`, and emits one selective
 `firm but supportive` tone. This illustrates both adversarial robustness and
-the value of minimal delivery control. See
-[`examples/corrective_feedback.json`](../examples/corrective_feedback.json).
+the value of minimal delivery control. See the `RS-V1-COR-CHA-01` row in
+[the public release-sanity results](../public_results/release_sanity_results.csv).
+The frozen case input is included in [the release-sanity dataset](../cases/release_sanity/release_sanity_v1.jsonl);
+its generated plan is not published as a standalone public example.
 
 ### Scaffolding — `RS-V1-SCA-CHA-01`
 

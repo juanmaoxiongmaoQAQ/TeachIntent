@@ -1,7 +1,7 @@
 # Decision Log — TeachIntent
 
-Records *why* decisions were made, not current state. Current state lives in
-`docs/CODEX_HANDOFF.md`. Each entry: Context / Decision / Evidence /
+Records *why* decisions were made, not current state. For the current product, see
+[README.md](../README.md). Each entry: Context / Decision / Evidence /
 Consequence.
 
 ---

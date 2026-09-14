@@ -1,5 +1,9 @@
 # Experimental segmented Baton in Live Studio
 
+> **历史研发记录**
+>
+> 本文记录 segmented BatonVoice 原型阶段的网页交互与执行方式。当前公开产品界面已重构，最新语音使用方式请参见 [renderer.md](renderer.md)。
+
 ## Release status (2026-09-14)
 
 The project owner has since confirmed real GPU synthesis and browser sequential

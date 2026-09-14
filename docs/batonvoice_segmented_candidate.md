@@ -1,5 +1,9 @@
 # BatonVoice segmented candidate
 
+> **历史研发记录**
+>
+> 本文记录 segmented renderer candidate 的研发验证过程，不代表当前网页操作入口。当前支持范围与使用方式请参见 [renderer.md](renderer.md)。
+
 The initial renderer design below is now complemented by the opt-in
 [experimental Live Studio integration](batonvoice_segmented_web.md). That page
 records the subsequently reported candidate GPU result and current web behavior;

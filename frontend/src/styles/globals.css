@@ -993,3 +993,42 @@ audio {
   height: 1px;
   overflow: hidden;
 }
+
+/* Keep the Studio action visible on shorter desktop viewports. */
+@media (min-width: 1024px) and (max-height: 900px) {
+  .product-main:has(> .studio-page) {
+    padding-top: 12px;
+  }
+  .studio-page {
+    gap: 8px;
+  }
+  .studio-page .task-progress {
+    padding-bottom: 6px;
+  }
+  .studio-page .teaching-form {
+    gap: 8px;
+  }
+  .studio-page .field-helper {
+    margin: 1px 0 2px;
+  }
+  .studio-page .field > textarea {
+    display: block;
+    padding-block: 4px;
+  }
+  .studio-page .intent-options {
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .studio-page .intent-options label {
+    padding: 6px 10px;
+  }
+  .studio-page .intent-options small {
+    margin-top: 2px;
+  }
+  .studio-page .supplemental {
+    padding-top: 6px;
+  }
+  .studio-page .form-actions {
+    margin-top: 8px;
+  }
+}
