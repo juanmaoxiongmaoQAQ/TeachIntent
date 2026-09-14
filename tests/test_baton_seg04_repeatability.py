@@ -17,7 +17,7 @@ from teachintent.renderers.batonvoice import (
 from test_batonvoice_renderer import fake_unified, observed_backend  # noqa: F401
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("seg04_repeat_cli", ROOT / "scripts/diagnose_baton_seg04_repeatability.py")
+spec = importlib.util.spec_from_file_location("seg04_repeat_cli", ROOT / "tools/diagnostics/diagnose_baton_seg04_repeatability.py")
 cli = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli)
 

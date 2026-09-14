@@ -769,7 +769,7 @@ def test_voice_response_never_returns_manifest_secret_or_paths(
         voice_root,
         manifest_overrides={
             "raw_response": "secret raw",
-            "source_path": "/Users/chengtengteng/private",
+            "source_path": "/Users/example/private",
             "Authorization": "Bearer sk-secret",
         },
     )

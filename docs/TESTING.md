@@ -89,3 +89,16 @@ verification is needed. Do not recreate unfavorable runs, fabricate manifests,
 change frozen contracts or commit `results/` to turn the suite green. Portable
 Explore artifacts under `examples/` and `public_demo/` are separate, committed
 release dependencies and are **not** covered by missing-history skips.
+
+## Product UI regression boundary
+
+Frontend tests cover Chinese navigation, forms, example-only filling, explicit
+generation/evaluation/rendering, attached delivery labels, folded raw evidence,
+optional audio failure, and sequential playback. Browser review uses real local
+servers with frozen examples and intercepted POST responses; it never calls a
+model provider. Review captures stay in ignored `outputs/ui-review/`; selected
+actual product screenshots are committed under `docs/assets/`.
+
+Privacy tests intentionally contain synthetic absolute paths such as
+`/Users/example/private` and `/opt/example-models/` to verify redaction. These
+are test inputs, not deployment paths or personal machine information.

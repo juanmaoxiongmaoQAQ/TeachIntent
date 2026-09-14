@@ -530,7 +530,7 @@ def test_voice_manifest_secret_fields_never_returned(
     _write_public_voice_fixture(
         voice_root,
         manifest_overrides={
-            "source_path": "/Users/chengtengteng/private",
+            "source_path": "/Users/example/private",
             "raw_response": "raw",
             "Authorization": "Bearer sk-secret",
         },

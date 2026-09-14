@@ -33,7 +33,7 @@ from teachintent.renderers.batonvoice import (
 from teachintent.validators import validate_speech_plan_document
 from teachintent.renderers._project_outputs import project_output_root
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLAN = ROOT / "cases/baton_diagnostic/golden_case_1_v0_4.speech_plan.json"
 DEFAULT_OUTPUT_ROOT = ROOT / "outputs/baton-segment-isolation"
 SPEED = 0.85

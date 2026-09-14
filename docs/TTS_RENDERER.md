@@ -2,7 +2,7 @@
 
 Release note (2026-09-14): these are legacy Qwen adapter notes, retained for the
 published Explore recordings and their provenance. The current optional live
-reference path is BatonVoice, documented in the [README](../README.md#batonvoice-reference-renderer).
+reference path is BatonVoice, documented in the [README](renderer.md).
 No additional TTS experiments or regenerated demo audio are required for submission.
 
 This adapter is a delivery demonstration layer, not a TeachIntent research

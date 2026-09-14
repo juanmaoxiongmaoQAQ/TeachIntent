@@ -114,7 +114,7 @@ def _write_render_source(
         "manifest_version": "1.0",
         "source": {
             "prompt_version": "v0.2",
-            "local_path": "/Users/chengtengteng/private/results",
+            "local_path": "/Users/example/private/results",
         },
         "exact_verbal_text": text,
         "exact_verbal_text_sha256": text_sha,
@@ -247,7 +247,7 @@ def test_local_checkpoint_model_reference_is_accepted_and_normalized(
         "corrective-feedback",
         plan=plan,
         model_reference=(
-            "/mnt/pfs/zitao_team/big_model/raw_models/"
+            "/opt/example-models/"
             "Qwen3-TTS-12Hz-1.7B-CustomVoice"
         ),
     )
@@ -277,9 +277,9 @@ def test_local_checkpoint_model_reference_is_accepted_and_normalized(
 @pytest.mark.parametrize(
     "bad_model_reference",
     [
-        "/mnt/pfs/zitao_team/big_model/raw_models/Qwen3-TTS-12Hz-1.7B-Base",
-        "/mnt/pfs/zitao_team/big_model/raw_models/OtherModel",
-        "/mnt/pfs/zitao_team/big_model/raw_models/Qwen3-TTS-12Hz-1.7B-CustomVoice-v2",
+        "/opt/example-models/Qwen3-TTS-12Hz-1.7B-Base",
+        "/opt/example-models/OtherModel",
+        "/opt/example-models/Qwen3-TTS-12Hz-1.7B-CustomVoice-v2",
         "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice-v2",
     ],
 )

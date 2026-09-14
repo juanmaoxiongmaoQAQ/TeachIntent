@@ -12,7 +12,7 @@ import pytest
 from test_baton_seg04_repeatability import config, fake_backend  # noqa: F401
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("seg04_neutral_cli", ROOT / "scripts/diagnose_baton_seg04_neutral_repeatability.py")
+spec = importlib.util.spec_from_file_location("seg04_neutral_cli", ROOT / "tools/diagnostics/diagnose_baton_seg04_neutral_repeatability.py")
 cli = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli)
 

@@ -11,7 +11,7 @@ from teachintent.renderers.batonvoice_segmented import SegmentedBatonVoiceRender
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "segmented_candidate_cli", ROOT / "scripts/run_baton_segmented_candidate.py",
+    "segmented_candidate_cli", ROOT / "tools/diagnostics/run_baton_segmented_candidate.py",
 )
 cli = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli)

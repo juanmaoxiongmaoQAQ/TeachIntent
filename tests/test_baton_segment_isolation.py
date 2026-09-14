@@ -16,7 +16,7 @@ from teachintent.renderers.batonvoice import (
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "baton_isolation_cli", ROOT / "scripts/diagnose_baton_segment_isolation.py",
+    "baton_isolation_cli", ROOT / "tools/diagnostics/diagnose_baton_segment_isolation.py",
 )
 cli = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli)

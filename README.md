@@ -1,150 +1,131 @@
 # TeachIntent
 
-**Pedagogical Intent Driven Speech Planning for AI Tutors**
+**教学意图驱动的 AI 教学语音规划系统**
 
-TeachIntent uses **Hy3 to plan the teaching language and its delivery before an
-AI tutor speaks**. Given lesson content, teaching context, learner state and a
-selected pedagogical intent, it produces an inspectable Speech Plan: **what to
-say** and **how to say it**. An independent evaluator checks the plan against
-its input; interchangeable adapters project delivery controls to speech engines.
+TeachIntent 根据教学内容、学生状态和教学意图，利用 Hy3 生成结构化教学语音计划，显式规划 AI 教师“说什么”和“怎么说”，并提供独立质量检查与可选语音执行。
 
-This is a personal open-practice project, **not an official Tencent release**.
-TeachIntent contributes the planning and evaluation layer. Hy3 supplies the
-reasoning model; BatonVoice is an optional reference speech backend.
+这是个人开源实践项目，不是 Tencent 官方发布。项目贡献是教学规划层，不是新的 TTS 模型或基础模型。
 
-## User scenario and problem definition
+## 为什么需要 TeachIntent
 
-A tutor should respond differently when correcting a misconception, offering a
-hint, or acknowledging successful reasoning. A conventional
-`context → LLM → text → TTS` pipeline leaves that teaching decision and its
-delivery difficult to inspect separately.
+纠正误解、提供提示、肯定进步，需要不同的教学回应。直接把模型回答送进 TTS，往往难以分别检查教学策略和表达方式。TeachIntent 将选定的教学意图、实际教学语言和必要的表达控制写进同一份可执行计划，让开发者和教师能看到系统准备怎样教。
 
-TeachIntent makes the selected intent, wording, sparse delivery controls and
-judgment evidence visible to AI-tutor developers and reviewers. It supports a
-single teaching turn; selecting the next intent and managing a tutoring dialogue
-remain the caller's responsibility.
-
-## Architecture
+## 核心流程
 
 ```mermaid
-flowchart TD
-    C[Teaching context and content anchor] --> H[Hy3 planner]
-    L[Learner state] --> H
-    G[Selected pedagogical intent] --> H
-    H --> S[Structured Pedagogical Speech Plan]
-    S --> V[Verbal Plan: what to say]
-    S --> D[Delivery Plan: how to say it]
-    S --> E[Independent Plan Evaluator]
-    C --> E
-    L --> E
-    G --> E
-    E --> J[Six dimensions and grounded evidence]
-    S --> I[Web inspection: WHAT / HOW]
-    V --> A[Renderer-specific adapter]
-    D --> A
-    A --> B[Optional BatonVoice reference renderer]
-    B --> Q[One WAV per verbal segment]
-    Q --> W[Sequential Web playback]
+flowchart LR
+    I[教学内容 + 学生状态 + 教学意图] --> H[Hy3 规划]
+    H --> P[教学语音计划: 说什么 + 怎么说]
+    P --> E[独立计划质量检查]
+    P --> R[可选语音执行]
 ```
 
-The evaluator reads the **input and Speech Plan**, never a WAV. Evaluation and
-rendering are separate user-triggered actions on the same saved plan; evaluation
-is not a mandatory gate for audio playback.
+质量检查针对 **Speech Plan，而不是评价音频**。质量检查与语音生成是两个独立操作，用户可以按需选择。
 
-### Why Hy3
+## 功能特点
 
-Hy3 is the live reasoning/planning model (`tencent/hy3` through the configured
-OpenRouter-compatible client). Its job is to integrate the lesson boundary,
-learner cues and teaching intent into a directly sayable response and justified
-delivery choices. This is an open-ended planning task, beyond choosing a voice
-style from a template. Hy3 does not synthesize audio or evaluate its own output.
-This implementation choice is not a claim of superiority over other planners.
+- 六类明确的教学意图，结合学生当前理解规划一次教学回应。
+- 教学语言与表达控制共享稳定的段落标识，经过结构和跨字段校验。
+- 按教学步骤阅读计划，表达提示直接附在对应步骤下；无需控制时保持为空。
+- 六维独立质量检查，简洁中文结论与可展开的原始理由、证据。
+- 三个已有公开案例和六个合成示例 WAV，无需 API key 即可浏览。
+- 高级教学意图对比：保持其他输入相同，仅改变教学意图。
+- 可选语音执行；分段方式仍属实验性功能，不影响核心规划的独立使用。
 
-### Key features
+## 界面预览
 
-- Six explicit pedagogical intents, conditioned on content and learner state.
-- Schema-validated, inspectable verbal and delivery plans with stable segment IDs.
-- Sparse controls: an empty delivery plan is valid when no control is justified.
-- Prompt selection in Live Studio: **v0.2**, **v0.3**, **v0.4**. v0.4 combines
-  natural verbal segmentation with sparse local delivery for teaching stages
-  such as acknowledgement, explanation and conclusion.
-- Independent Evaluator v0.1: frozen rubric, strict Judge output contract,
-  structured JSON grounding and bounded alias normalization.
-- Conservative renderer adapters; unsupported precision is not promised.
-- Explore, Live Studio and Intent Compare, including optional single-pass
-  speech and an **Experimental** segmented player.
+首页说明产品与输入输出；在线体验处理一次教学回应；示例库展示已有真实结果。
+以下截图来自实际产品网页，在线体验截图为填写示例后的初始状态，未调用生成服务。
 
-The generator library still defaults to v0.1. Live Studio defaults to v0.2;
-Intent Compare explicitly uses v0.2. Formal v0.2 remains a frozen, byte-identical
-behavioral alias of v0.2-rc.2. Later versions are explicitly selected development
-variants, not new schemas or evidence of held-out superiority.
+![TeachIntent 首页](docs/assets/home.png)
 
-## Interactive Showcase
+<details>
+<summary>在线体验与示例库</summary>
 
-Open **`/showcase`** to quickly understand TeachIntent, review three existing
-examples, inspect WHAT/HOW planning and evaluator evidence, and compare recorded
-Neutral/Planned demo speech. Case selection updates the page without navigation.
-The artifacts retain their actual **Prompt v0.2** label. Empty delivery is shown
-as deliberate sparse planning; no additional control is invented.
+![在线体验](docs/assets/studio.png)
 
-Showcase uses local public artifacts and needs no API key, GPU or Baton runtime.
-The six synthetic Qwen3-TTS demo recordings are approved by the project owner
-for public demonstration; they are clearly separate from live Baton synthesis.
-**Open Live Studio** leads to `/live` for optional provider-backed work.
-Explore (`/explore`, also `/`) and Intent Compare (`/compare`) remain available.
+![示例库](docs/assets/examples.png)
 
-After installing the app and frontend dependencies described below, on Linux
-with Python 3.9+ and Node on `PATH`, run from the project root:
+</details>
+
+## 快速开始
+
+需要 Python **3.10+**、Node **20.19+ 或 22.12+** 和 npm。请从仓库检出目录运行，网页会读取提交的 `examples/`、`public_demo/`、`schemas/` 和 `docs/`。浏览示例无需模型安装。
 
 ```bash
-scripts/start_showcase.sh
+git clone https://github.com/juanmaoxiongmaoQAQ/TeachIntent.git
+cd TeachIntent
+python3 -m venv .venv
+source .venv/bin/activate
+mkdir -p outputs/tmp outputs/cache/pip outputs/cache/npm
+export TMPDIR="$PWD/outputs/tmp"
+export PIP_CACHE_DIR="$PWD/outputs/cache/pip"
+export npm_config_cache="$PWD/outputs/cache/npm"
+python -m pip install -e '.[dev]'
+npm --prefix frontend ci
+if [ ! -f .env ]; then
+  cp .env.example .env
+fi
 ```
 
-The script tries backend 8000 and frontend 5173, safely selects nearby free
-ports if needed, listens on `0.0.0.0` and configures the Vite proxy automatically.
-Use the exact URLs it prints. Set `SHOWCASE_PYTHON=/path/to/app-env/bin/python`
-if the app dependencies are in a separate Python environment. Repeating start
-reuses the healthy owned servers. To stop only those servers:
+终端一启动后端：
 
 ```bash
-scripts/stop_showcase.sh
+python scripts/run_web_api.py --host 127.0.0.1 --port 8000
 ```
 
-PID state and per-run logs remain in ignored `outputs/showcase-runtime/`.
-The controller verifies process ownership, start time and a run-specific tag
-before signaling; occupied ports belonging to other services are left alone.
-For remote review without a directly reachable port, use the printed SSH tunnel
-command and open the forwarded localhost URL. These are development servers;
-this script does not configure a production deployment or system services.
+终端二在项目根目录启动前端：
 
-## Pedagogical intent taxonomy
+```bash
+npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
+```
 
-| Intent | Teaching move |
+打开 [本地首页](http://127.0.0.1:5173/)，选择“示例库”即可查看已有计划、评价与音频。默认 Vite 代理连接后端 8000；如改变后端端口，在前端进程中设置 `TEACHINTENT_API_TARGET`。
+
+Linux 上也可使用兼容保留的 `scripts/start_showcase.sh` / `scripts/stop_showcase.sh` 管理本地服务。它会选择空闲端口、打印访问地址，只停止自身进程；日志在忽略的 `outputs/showcase-runtime/`。这些是开发服务器，不是生产部署配置。
+
+### 启用实时规划与质量检查
+
+在服务器端忽略的 `.env` 或环境变量中配置：
+
+| 变量 | 用途 |
 |---|---|
-| `elicitation` | Elicit the learner's knowledge, reasoning or next response. |
-| `scaffolding` | Provide a focused hint or intermediate step without taking over. |
-| `explanation` | Clarify a concept or relationship within the content anchor. |
-| `corrective_feedback` | Identify and repair a misconception or error. |
-| `supportive_feedback` | Acknowledge specific progress or effective reasoning. |
-| `extension` | Extend understanding beyond the immediate step within the supplied boundary. |
+| `HY3_API_KEY` | 实时 Hy3 教学规划 |
+| `HY3_BASE_URL` | 默认 `https://openrouter.ai/api/v1` |
+| `HY3_MODEL` | 默认 `tencent/hy3` |
+| `OPENROUTER_API_KEY` | 独立、按需触发的计划质量检查 |
 
-The caller chooses the intent. See [taxonomy](docs/pedagogical_intents.md).
+后端加载根目录 `.env`，不覆盖已导出的变量。密钥只留在服务端，不能放进前端 `VITE_*` 变量或 Git。修改配置后重启后端。
 
-## Speech Plan: what to say / how to say it
+进入 `/studio`，填写教学内容、学生回答并选择意图，再点击“生成教学计划”。“使用示例”只填表，不调用 Hy3；“检查计划质量”和“生成语音”也不会自动执行。没有配置实时服务时，可以继续使用示例库。
 
-This is the saved [Golden Case 1 v0.4 plan](cases/baton_diagnostic/golden_case_1_v0_4.speech_plan.json),
-used for the Baton reference diagnostics. It follows Speech Plan schema
-`1.0.0-rc.3`; input schema remains `1.0.0-rc.2`.
+## 输入与输出
+
+下面以单位分数纠错说明接口。输入是当前 `POST /api/generate` 的真实字段结构；内容及输出文本是**说明性示例，不冒充已记录的 Hy3 实验结果**。省略 `prompt_version` 时，网页接口使用 v0.2。
+
+```json
+{
+  "content_anchor": "在同一个整体中，单位分数的分母越大，每一份越小，因此 1/4 小于 1/3。",
+  "teaching_scenario": "学生把分母的大小直接当成了分数的大小。",
+  "learner_utterance": "我觉得 1/4 比 1/3 大，因为 4 比 3 大。",
+  "learner_level": "小学",
+  "knowledge_state": "已认识分子和分母，但对单位分数的大小存在误解",
+  "affective_state": "愿意表达自己的想法",
+  "pedagogical_intent": "corrective_feedback"
+}
+```
+
+后端将这些字段组装成输入契约 `1.0.0-rc.2`。Hy3 输出的 `speech_plan` 对应真实 Speech Plan Schema `1.0.0-rc.3`：
 
 ```json
 {
   "schema_version": "1.0.0-rc.3",
   "verbal_plan": {
     "segments": [
-      {"segment_id": "seg_01", "text": "你观察得很对，匀速圆周运动里速度的大小确实没有变。"},
-      {"segment_id": "seg_02", "text": "不过，速度不仅仅包含大小，还包含方向。"},
-      {"segment_id": "seg_03", "text": "物体做圆周运动时，方向在不断改变，也就是速度在变化。"},
-      {"segment_id": "seg_04", "text": "所以加速度并不为零，因为加速度取决于速度的变化，包括方向的变化。"}
+      {"segment_id": "seg_01", "text": "你注意到 4 比 3 大，这个观察本身没有错。"},
+      {"segment_id": "seg_02", "text": "不过，在分数里，分母表示把整体平均分成多少份。"},
+      {"segment_id": "seg_03", "text": "对同一个整体，分得越多，每一份越小。"},
+      {"segment_id": "seg_04", "text": "所以四分之一其实比三分之一小。"}
     ]
   },
   "delivery_plan": {
@@ -156,278 +137,80 @@ used for the Baton reference diagnostics. It follows Speech Plan schema
 }
 ```
 
-The Verbal Plan contains the teaching language. The Delivery Plan references
-segments without rewriting their words. Here only the acknowledgement and
-conclusion carry local controls; the middle explanation needs no filled-in
-prosody template. Symbolic controls are planning decisions, not guaranteed
-acoustic measurements. See [Speech Plan contract](docs/speech_plan_schema.md).
+`verbal_plan` 是**说什么**；`delivery_plan` 是**怎么说**，通过段落标识引用原文。没有必要的控制可以省略，整个 `delivery_plan: {}` 也合法；网页显示“本段无需额外表达控制”。上述高语调控制只表达符号意图，不保证合成器精确实现声学目标。
 
-## Independent evaluator
+API 响应还包含 `session_id`、实际输入和生成元信息。质量检查和可选 Renderer 使用同一会话中保存的计划，分别得到评价与语音，不改写计划。详细契约见 [输入模型](src/teachintent/models/input.py) 与 [Speech Plan Schema](docs/speech_plan_schema.md)。已有实测输出可见 [圆周运动 Golden Case](cases/baton_diagnostic/golden_case_1_v0_4.speech_plan.json)。
 
-Evaluator v0.1 uses six frozen dimensions, each scored 0–4:
+## 六类教学意图
 
-| Dimension | What is checked |
-|---|---|
-| D1 — Pedagogical Intent Fidelity | Does the requested teaching move dominate? |
-| D2 — Content Faithfulness / Boundary | Is the response supported by the content anchor? |
-| D3 — Learner-State Compatibility | Does it fit the supplied learner cues? |
-| D4 — Intent-Specific Instructional Adequacy | Is the move useful and sufficiently complete? |
-| D5 — Delivery Necessity / Sparsity | Are controls minimal and justified? |
-| D6 — Delivery–Pedagogy Alignment | Do the controls, or their omission, support the teaching move? |
+| 中文名称 | 接口值 | 教学作用 |
+|---|---|---|
+| 了解学情 | `elicitation` | 用提问了解学生的知识与推理 |
+| 提供支架 | `scaffolding` | 给出下一步提示，保留思考空间 |
+| 讲解知识 | `explanation` | 解释概念与关键联系 |
+| 纠错反馈 | `corrective_feedback` | 回应误解，帮助修正认识 |
+| 支持性反馈 | `supportive_feedback` | 肯定具体进步或有效策略 |
+| 拓展提升 | `extension` | 在内容边界内延伸已有理解 |
 
-The independent Judge's output must satisfy its contract and cite grounded input
-or plan evidence. Structured delivery evidence is checked against the referenced
-JSON; recognized aliases are normalized before validation. Invalid judgments
-remain visible failures, not zero scores or invented evidence. The Web panel
-links dimensions to their evidence. **These are plan-quality judgments, not
-pronunciation, audio-fidelity or naturalness scores.**
+意图由调用者明确选择，系统不负责自动选择意图或多轮教学策略。定义见 [教学意图](docs/pedagogical_intents.md)。
 
-See [evaluation method](docs/EVALUATION_METHOD.md), [recorded results](docs/RESULTS.md)
-and [failure analysis](docs/FAILURE_ANALYSIS.md). Development evidence, release
-sanity checks and frozen confirmatory evaluator evidence have distinct scopes;
-none establishes production TTS quality or formal held-out prompt superiority.
+## 计划质量检查
 
-## BatonVoice reference renderer
+独立 Evaluator v0.1 检查教学意图一致性、内容忠实性、学生状态适配、教学策略充分性、表达控制必要性、表达与教学目标一致性。每维评分为 0–4，网页按评分给出简短中文概括；原始理由、证据与关键风险放在“查看详细评价”中。
 
-The optional BatonVoice adapter projects supported symbolic delivery into
-conservative acoustic ranges. It preserves verbal text and segment order;
-precise pause duration, word-level prosody and exact acoustic realization are
-outside its contract. Model and upstream paths come from environment variables.
-Heavy speech dependencies load only when rendering is explicitly requested.
+证据需对应输入或计划，非法判断作为失败保留，不替换成零分或虚构证据。评分不代表学习效果、发音质量或音频自然度。方法和研究证据分别见 [评价方法](docs/EVALUATION_METHOD.md)、[结果](docs/RESULTS.md) 与 [失败分析](docs/FAILURE_ANALYSIS.md)。
 
-Single-pass multi-segment synthesis showed later content drift, compressed
-reading and weak boundaries in the recorded tests. The segmented candidate
-uses **one independent synthesis per verbal segment**, writes separate WAVs and
-a manifest, and plays successful segments in order using browser audio events.
-It does not concatenate WAVs, insert silence, splice audio, post-process waves,
-retry synthesis or use ASR fallback.
+## 可选语音执行
 
-Project-owner GPU and browser listening checks reported better content fidelity,
-speech rate and boundary behavior, appropriate pauses, and continuous speaker
-and loudness without obvious separation into recordings. This is observed
-reference-run behavior, not a universal or gapless-playback guarantee. The Web
-control remains **Experimental**. See [candidate design](docs/batonvoice_segmented_candidate.md)
-and [Web integration](docs/batonvoice_segmented_web.md).
+语音是次级、按需功能。已有示例音频来自 Qwen3-TTS，页面显示“基础语音 / 规划后语音”，不会自动播放。六个合成 WAV 已获项目所有者公开展示授权，来源和哈希保留在原 manifest；支持性反馈的空表达计划对应相同的 A/B 音频。
 
-## Demo / showcase
+实时语音可接入已有 BatonVoice 环境。分段执行为每段独立生成音频并在浏览器顺序播放，仍标注实验性；整段执行保留在技术详情。未配置时轻量提示，不影响教学计划。配置变量、输出位置和能力边界见 [语音执行](docs/renderer.md)。
 
-Start with **Explore**: it uses committed artifacts and needs no API key, GPU or
-historical `results/` directory. Select each case, inspect WHAT/HOW, select an
-evaluator dimension, and follow its grounded evidence.
+## 项目结构
 
-| Existing showcase | What to inspect |
-|---|---|
-| [Corrective feedback](examples/corrective_feedback.json) | A frustrated physics learner equates unchanged speed with zero acceleration; acknowledge the valid observation and repair the direction misconception. |
-| [Scaffolding](examples/scaffolding.json) | A frustrated biology learner wants all genetic-cross answers; offer the next gamete-listing step without taking over. |
-| [Supportive feedback](examples/supportive_feedback.json) | Acknowledge successful transfer of coordinate-axis reading across subjects; the recorded v0.2 delivery plan is empty. |
-
-These are existing recorded Hy3 outputs with matching evaluator artifacts, not
-hardcoded substitutes for live generation. Different showcase contexts illustrate
-the intents; they are not a controlled intent-only experiment.
-
-**Live Studio** loads the corrective showcase's input only. Choose a prompt,
-generate with Hy3, then optionally evaluate that saved plan and render speech.
-Changing a selector does not relabel an already-generated plan. Generation and
-evaluation require server-side credentials; speech requires a separate local
-Baton environment. Loading a scenario never generates a plan automatically.
-
-**Intent Compare** holds the context and learner fields constant and changes only
-the selected intent. It makes two live Hy3 calls using v0.2, presents both plans
-and structural differences, and does not automatically evaluate or render audio.
-
-Explore's optional recorded neutral/planned audio is **Qwen3-TTS**, as identified
-by its manifests, not BatonVoice. In the supportive-feedback example the empty
-delivery plan gives identical A/B audio; no audible difference is claimed.
-Golden Case 1 v0.4 supplies additional Baton diagnostic evidence, independently
-of these v0.2 Explore examples. Use the [two-minute demo guide](docs/DEMO_SCRIPT.md).
-
-## Quick start
-
-Prerequisites: Python **3.10+** and Node **20.19+ or 22.12+** with npm. Run from a
-clone of this repository; the Web app reads its committed `examples/`,
-`public_demo/`, `schemas/` and `docs/` in place. No model installation is needed
-for Explore or offline tests.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-mkdir -p outputs/tmp outputs/logs outputs/cache/pip
-export TMPDIR="$PWD/outputs/tmp"
-export PIP_CACHE_DIR="$PWD/outputs/cache/pip"
-python -m pip install -e '.[dev]'
-if [ ! -f .env ]; then
-  cp .env.example .env
-fi
+```text
+src/teachintent/       规划、契约、评价、适配器和 Web API
+frontend/             中文产品网页、测试与 npm lockfile
+schemas/              输入与 Speech Plan JSON Schema
+cases/                canonical 数据与保存的诊断计划
+examples/             三个公开案例及真实规划结果
+public_demo/          已保存评价、六个合成 WAV 与来源 manifest
+tests/                核心测试与历史证据边界
+scripts/              启动、导出与冻结协议复现入口
+tools/diagnostics/    独立研发诊断工具，不属于 Quick Start
+docs/                 契约、方法、使用说明和公开截图
+outputs/、results/    本地生成产物与历史证据，不进入 Git
 ```
 
-Leave credentials and Baton paths empty for offline Explore. Existing `.env`
-files are not replaced. For a terminal-only recorded demonstration:
+开发入口见 [架构与版本边界](docs/architecture.md)。生成器库默认 v0.1，网页默认 v0.2，对比固定 v0.2；v0.3/v0.4 可在技术详情中显式选择。正式 v0.2 是冻结 v0.2-rc.2 的字节一致行为别名。示例库保留原始 v0.2，不能据此宣称新版本的确认性优势。
 
-```bash
-python scripts/run_demo.py
-```
+## 测试
 
-### Environment variables
-
-Configure private values in the ignored root `.env` or export them in the server
-shell. `run_web_api.py` loads the root `.env` without overriding exported values.
-Never place credentials in frontend `VITE_*` variables.
-
-| Variable | Purpose |
-|---|---|
-| `HY3_API_KEY` | Required for live Hy3 planning only. |
-| `HY3_BASE_URL` | Default `https://openrouter.ai/api/v1`. |
-| `HY3_MODEL` | Default `tencent/hy3`. |
-| `OPENROUTER_API_KEY` | Independent live evaluator credential; may use the same account key. |
-| `BATONVOICE_MODEL_PATH` | Existing local Baton checkpoint. |
-| `BATONVOICE_COSYVOICE_MODEL_DIR` | Existing local CosyVoice2 checkpoint. |
-| `BATONVOICE_SOURCE_DIR` | Existing Tencent `digitalhuman/BatonVoice` source directory. |
-| `BATONVOICE_WETEXT_FST_DIR` | Existing local WeText FST assets. |
-| `BATONVOICE_PROMPT_AUDIO_PATH` | Existing reference prompt WAV; preserve the verified speaker condition. |
-| `BATONVOICE_TENSOR_PARALLEL_SIZE` | Existing runtime setting; example `1`. |
-| `BATONVOICE_GPU_MEMORY_UTILIZATION` | Existing runtime setting; example `0.25`. |
-| `BATONVOICE_FP16` | Existing runtime setting; example `0`. |
-| `BATONVOICE_SPEECH_SPEED` | Preserve the validated reference setting **`0.85`**; no new tuning. |
-| `TEACHINTENT_BATONVOICE_OUTPUT_DIR` | Single-pass Web output root, default `outputs` relative to TeachIntent; external paths rejected. |
-| `TEACHINTENT_API_TARGET` | Optional Vite proxy target; default `http://127.0.0.1:8000`. |
-
-Baton paths/resources are needed only for speech. The minimal Python install does
-not provision the separate Baton/vLLM/CosyVoice runtime or download weights.
-Use an already verified runtime for that optional demonstration. Legacy Qwen
-settings are documented in [.env.example](.env.example) and [TTS notes](docs/TTS_RENDERER.md).
-
-### Running backend
-
-In the activated Python environment, from the repository root:
-
-```bash
-export TMPDIR="$PWD/outputs/tmp"
-python scripts/run_web_api.py --host 127.0.0.1 --port 8000
-```
-
-Health: `http://127.0.0.1:8000/api/health`. Explore does not call a provider.
-Live session state is bounded and in memory; restarting the server loses live
-session URLs. The development server has no authentication or multi-worker
-session store: use loopback for review, not an unprotected public deployment.
-
-### Running frontend
-
-In a second terminal, starting from the repository root:
-
-```bash
-export TMPDIR="$PWD/outputs/tmp"
-export npm_config_cache="$PWD/outputs/cache/npm"
-cd frontend
-npm ci
-npm run dev -- --host 127.0.0.1
-```
-
-Open `http://127.0.0.1:5173`. Vite proxies `/api` to the backend. `npm run build`
-creates `frontend/dist/`; it does not configure production API hosting.
-
-If either default port is occupied, leave existing services running and choose
-free ports. For example, start the backend from the repository root with
-`python scripts/run_web_api.py --host 127.0.0.1 --port 8001`; in the frontend
-terminal, from `frontend/`, run
-`TEACHINTENT_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`
-and open `http://127.0.0.1:5174`. Keep the project-local temp/cache environment
-from the setup above. These example ports must also be free; Vite's printed
-address identifies the running frontend. A changed backend port requires the
-matching `TEACHINTENT_API_TARGET`.
-
-### Running tests
-
-From the repository root, with the Python environment activated:
+以下门禁只使用假客户端、提交的案例和离线实现，无需 API key 或 GPU：
 
 ```bash
 mkdir -p outputs/tmp
 export TMPDIR="$PWD/outputs/tmp"
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -m 'not historical_artifacts'
+npm --prefix frontend test
+npm --prefix frontend run build
+git diff --check
 ```
 
-This is the **core release gate**: offline contracts, planner/evaluator behavior,
-Web services, published examples and mock renderer/diagnostic regression tests.
-No API key, model weights or GPU is required. Pytest allocates a fresh project-local
-base directory under `outputs/pytest/` when no `--basetemp` is given.
+历史 artifact 测试只有在指定不可变运行目录缺失时跳过；恢复目录后，内容、身份或哈希错误仍失败。核心门禁不会伪造历史记录。完整命令和边界见 [TESTING.md](docs/TESTING.md)。
 
-Historical artifact-dependent tests are separately selectable:
+## 第三方组件
 
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -m historical_artifacts -rs
-# After restoring the exact original frozen runs, require all prerequisites:
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -m historical_artifacts --require-historical-artifacts
-```
+Hy3、OpenRouter、BatonVoice、CosyVoice、WeText 和 Qwen3-TTS 各自保留其服务或组件条款。源码不携带权重、参考录音、密钥或 Tencent upstream。详见 [第三方来源与授权边界](docs/THIRD_PARTY.md)。
 
-Missing named run directories produce explicit skips in the ordinary suite.
-Existing incomplete/corrupt runs still fail their original tests. No artifacts
-are generated or downloaded to make tests pass. [Testing guide](docs/TESTING.md)
-lists the required run IDs and strict mode. Full available suite: `python -m pytest -q -rs`.
+## 已知限制
 
-Frontend, from `frontend/` with the project-local cache/temp environment above:
+- 只规划一次教学回应，不管理多轮教学策略，也不证明真实学习收益。
+- 实时规划与质量检查依赖外部服务；会话保存在进程内，重启后需重新生成。
+- 示例库是已有记录，三个情境不同，不能视为只改变意图的受控实验。
+- 符号表达控制不能保证精确声学实现；分段语音仍可能存在发音波动和浏览器播放间隙。
+- 网页是开发演示部署，不包含生产身份认证、配额管理或长期会话存储。
 
-```bash
-npm test
-npm run build
-```
+## License
 
-## Repository structure and release boundary
-
-| Area | Role |
-|---|---|
-| `src/teachintent/{generator,models,validators,prompts,evaluator}/` | Product planning and frozen contracts; prompt selection is explicit. |
-| `src/teachintent/{app_service.py,web_api.py,web_models.py}`, `frontend/` | Product Web inspection, live planning, independent evaluation and comparison. |
-| `src/teachintent/{adapters,renderers}/` | Optional speech projection/execution; segmented renderer remains experimental. |
-| `examples/`, `public_demo/` | Portable, committed recorded showcases and matching provenance. |
-| `schemas/`, `docs/`, `cases/` | Contracts, protocols and canonical inputs. |
-| `scripts/diagnose_*.py`, segmented candidate CLI, `cases/baton_diagnostic/` | Experimental diagnostics, not startup or submission prerequisites. No further TTS research is planned. |
-| Retired K0 scripts | Retained locally, excluded from the public release; not application or test dependencies. |
-| Pilot/baseline/prompt-development runners and marked tests | Historical experiment tooling, requiring the corresponding frozen artifacts. |
-| `results/` | Ignored immutable experiment evidence; never fabricate, delete or overwrite it. |
-| `outputs/` | Ignored runtime audio, manifests, logs, caches and offline verification artifacts. |
-
-Segmented Web audio uses `outputs/baton-segmented/<run-id>/seg_*.wav` plus
-`manifest.json`; single-pass Web audio defaults to
-`outputs/teachintent-batonvoice/<session-id>.wav`. Neither Web route accepts an
-arbitrary client filesystem path. Do not move historical evidence for release.
-
-## Security and provenance
-
-Keep API keys server-side and out of Git, recordings, screenshots and error
-reports. `.env`, credential files, shell history, checkpoints and generated
-outputs are ignored. [.env.example](.env.example) contains empty credential and
-local-path fields. Review the **actual staged diff** before publishing; ignore
-rules do not remove a file that is already tracked.
-
-Hy3, Tencent BatonVoice, CosyVoice2, Qwen3-TTS and WeText are third-party
-components, not new models trained by TeachIntent. Weights and upstream source
-are not bundled. Public audio manifests preserve the actual Qwen model,
-speaker, text hash, conditions and audio hashes. Review separate code/model
-licenses and reference-audio permissions before redistribution; TeachIntent's
-[MIT license](LICENSE) does not relicense third-party materials. See
-[third-party provenance](docs/THIRD_PARTY.md) and [release audit](docs/RELEASE_AUDIT.md).
-
-## Known limitations
-
-- BatonVoice is an optional reference renderer. Single-pass long responses
-  showed drift; segmented synthesis improved fidelity and boundaries in our
-  tests, but local swallowing, missing final characters, unstable Mandarin
-  punctuation and synthetic voice quality remain. Speech-token variation is
-  stochastic. These are renderer limitations, not further release experiments.
-- Precise pauses, duration, word-level prosody and production-grade expressive
-  TTS are not claimed. Conservative delivery projection is intentional.
-- Browser/network scheduling can affect playback gaps. Segmented audio remains
-  experimental; mock tests verify controls, not human-perceived naturalness.
-- The evaluator assesses plans using a fallible independent Judge; scores do
-  not establish learning gains. Dataset and evidence boundaries are documented.
-- This is a local single-turn review application, not a production tutoring
-  service. Live planning/evaluation need provider access; speech needs a
-  separately provisioned compatible runtime.
-
-## Submission materials
-
-Use the [Task 1 compliance matrix](docs/TASK1_COMPLIANCE.md),
-[two-minute demo guide](docs/DEMO_SCRIPT.md) and
-[submission checklist](docs/SUBMISSION_CHECKLIST.md). Source readiness and a finished
-submission package are separate: prepare the final recording and submission
-links as required by the destination. The owner approved the source publication
-and six existing synthetic demo WAVs; see [third-party provenance](docs/THIRD_PARTY.md).
+TeachIntent 自有源码采用 [MIT License](LICENSE)。该许可不替代第三方模型、服务或媒体的授权条款。

@@ -20,7 +20,7 @@ from teachintent.renderers.batonvoice_segmented import (
     SegmentedBatonVoiceRenderer,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLAN = ROOT / "cases/baton_diagnostic/golden_case_1_v0_4.speech_plan.json"
 
 
