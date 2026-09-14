@@ -58,6 +58,12 @@ it("switches the three frozen cases, preserving text, version and A/B audio with
     expect(screen.getByText("技术详情").closest("details")).not.toHaveAttribute(
       "open",
     );
+    const quality = screen.getByRole("region", { name: "计划质量检查" });
+    expect(quality.querySelector(".quality-grid mark")).not.toBeNull();
+    expect(quality.querySelector(".quality-grid")).not.toHaveTextContent(/(?:input|plan)\./);
+    expect(screen.getByText("查看详细评价").closest("details")).not.toHaveAttribute("open");
+    expect(screen.queryByText("想进一步比较教学策略？")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /比较不同教学意图/ })).toHaveAttribute("href", "/compare");
     for (const node of screen.getAllByText(/"prompt_version": "v0.2"/))
       expect(node).not.toBeVisible();
   }

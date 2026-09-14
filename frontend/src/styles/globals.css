@@ -630,6 +630,58 @@ textarea::placeholder {
   font-size: 12px;
   line-height: 1.8;
 }
+.quality-check .evidence-excerpt {
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  overflow-wrap: anywhere;
+}
+.quality-check .evidence-excerpt p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.quality-check .evidence-excerpt mark {
+  background: #e4eee5;
+  color: inherit;
+  padding: 0.05em 0;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.quality-check .evidence-excerpt cite {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--muted);
+}
+.quality-grid .quality-evidence {
+  margin-top: 6px;
+}
+.evidence-locations {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.evidence-locations pre {
+  max-height: 280px;
+  overflow: auto;
+  margin-top: 10px;
+  padding: 12px;
+  background: #f0f3ef;
+  color: #20332e;
+  font-size: 12px;
+}
+.example-detail {
+  gap: 20px;
+}
+.example-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
 .evaluation-detail {
   padding: 16px 0;
   border-bottom: 1px solid var(--line);

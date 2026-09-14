@@ -35,9 +35,9 @@ export function ExamplesPage() {
   return (
     <div className="page-stack">
       <header className="page-heading">
-        <p className="eyebrow">从真实案例理解教学规划</p>
+        {!selected ? <p className="eyebrow">从真实案例理解教学规划</p> : null}
         <h1>示例库</h1>
-        <p>查看教学情况如何转成教学步骤，以及表达方式为什么需要调整。</p>
+        {!selected ? <p>查看教学情况如何转成教学步骤，以及表达方式为什么需要调整。</p> : null}
       </header>
       {!selected ? (
         <div className="example-list">
@@ -91,7 +91,7 @@ export function ExamplesPage() {
               正在读取示例…
             </p>
           ) : (
-            <div key={selected} className="page-stack">
+            <div key={selected} className="page-stack example-detail">
               <div className="example-context">
                 <div>
                   <p className="eyebrow">{item?.intent}</p>
@@ -182,15 +182,18 @@ export function ExamplesPage() {
                   语音来源与映射: data.voice_realization,
                 }}
               />
-              <a className="button-primary self-start" href="/studio">
-                用自己的教学情况开始体验{" "}
-                <ArrowRight size={16} aria-hidden="true" />
-              </a>
+              <div className="example-actions">
+                <a className="button-secondary" href="/studio">
+                  用自己的教学情况开始体验
+                  <ArrowRight size={16} aria-hidden="true" />
+                </a>
+                <a className="text-link" href="/compare">比较不同教学意图 →</a>
+              </div>
             </div>
           )}
         </>
       )}
-      <aside className="advanced-entry">
+      {!selected ? <aside className="advanced-entry">
         <div>
           <h2>想进一步比较教学策略？</h2>
           <p className="subtle">
@@ -200,7 +203,7 @@ export function ExamplesPage() {
         <a className="text-link" href="/compare">
           比较不同教学意图 <ArrowRight size={16} aria-hidden="true" />
         </a>
-      </aside>
+      </aside> : null}
     </div>
   );
 }

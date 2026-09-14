@@ -99,8 +99,13 @@ it("checks quality explicitly and discloses original evaluation only on request"
   ]);
   const details = screen.getByText("查看详细评价").closest("details");
   expect(details).not.toHaveAttribute("open");
+  const quality = screen.getByRole("region", { name: "计划质量检查" });
+  expect(quality.querySelector(".quality-grid mark")).not.toBeNull();
+  expect(quality.querySelector(".quality-grid")).not.toHaveTextContent(/(?:input|plan)\./);
   await user.click(screen.getByText("查看详细评价"));
   expect(details).toHaveAttribute("open");
+  for (const raw of quality.querySelectorAll(".evidence-locations pre"))
+    expect(raw).not.toBeVisible();
 });
 it("handles unavailable speech quietly while retaining the plan", async () => {
   render(<LiveStudioPage />);
