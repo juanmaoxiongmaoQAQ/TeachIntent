@@ -21,3 +21,41 @@
 
 停止时运行 `scripts/stop_showcase.sh`；日志与 PID 记录位于
 `outputs/showcase-runtime/`，启动脚本只管理自己创建的两个服务。
+
+## Tomorrow Quick Start
+
+服务器端：
+
+```bash
+cd /mnt/pfs/zitao_team/tengtengcheng/TeachIntent
+scripts/start_showcase.sh
+```
+
+服务健康时重复执行会复用已有进程，不重复启动或停止其他服务。
+如果需要重建服务，先确保 Node 20.19+ 在 `PATH`，并指定本机应用环境：
+
+```bash
+export SHOWCASE_PYTHON=/mnt/pfs/zitao_team/tengtengcheng/.conda/envs/batonvoice_ctt/bin/python
+scripts/start_showcase.sh
+```
+
+端口以脚本输出为准；当前 frontend 为 5175，backend 为 8002。
+
+情况 A：电脑能访问服务器内网，直接打开：
+
+http://10.199.106.109:5175/showcase
+
+情况 B：使用可连接服务器的 SSH 登录信息，在本地电脑执行：
+
+```bash
+ssh -N -L 5175:127.0.0.1:5175 <SSH_USER>@10.199.106.109
+```
+
+保持 tunnel 终端运行，然后打开：
+
+http://127.0.0.1:5175/showcase
+
+Vite 在服务器端代理 backend，仅需转发 frontend 5175，无需第二条 tunnel。
+本地电脑必须能通过现有网络或 SSH 配置连接服务器；tunnel 不会自动建立内网连接。
+服务通过独立 session 启动且不依赖 SSH 终端，正常断开服务器 SSH 不会停止服务。
+服务器关机、重启或平台回收仍需重新启动。
