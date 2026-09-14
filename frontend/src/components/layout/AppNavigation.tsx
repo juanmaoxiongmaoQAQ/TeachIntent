@@ -1,57 +1,28 @@
-import { cn } from "../../lib/utils";
-
-type Page = "explore" | "live" | "compare" | "showcase";
-
-interface AppNavigationProps {
-  current: Page;
-  onChange: (page: Page) => void;
-}
-
-export function AppNavigation({ current, onChange }: AppNavigationProps) {
-  const items: Array<{ id: Page; label: string; description: string }> = [
-    { id: "showcase", label: "Showcase", description: "See planning in action" },
-    {
-      id: "explore",
-      label: "Explore",
-      description: "Inspect validated examples",
-    },
-    {
-      id: "live",
-      label: "Live Studio",
-      description: "Generate your own Speech Plan",
-    },
-    {
-      id: "compare",
-      label: "Intent Compare",
-      description: "Change only the teaching intent",
-    },
-  ];
+export function AppNavigation({ current }: { current: string }) {
   return (
-    <nav className="mx-auto flex max-w-[1400px] flex-wrap gap-2 px-6 py-4">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => onChange(item.id)}
-          aria-current={current === item.id ? "page" : undefined}
-          className={cn(
-            "rounded-xl px-4 py-2 text-left transition-colors",
-            current === item.id
-              ? "bg-slate-950 text-white"
-              : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-          )}
-        >
-          <span className="block text-sm font-semibold">{item.label}</span>
-          <span
-            className={cn(
-              "hidden text-xs sm:block",
-              current === item.id ? "text-slate-300" : "text-slate-500",
-            )}
-          >
-            {item.description}
-          </span>
-        </button>
-      ))}
+    <nav aria-label="主导航">
+      <a href="/" aria-current={current === "/" ? "page" : undefined}>
+        首页
+      </a>
+      <a
+        href="/studio"
+        aria-current={current === "/studio" ? "page" : undefined}
+      >
+        在线体验
+      </a>
+      <a
+        href="/examples"
+        aria-current={current === "/examples" ? "page" : undefined}
+      >
+        示例库
+      </a>
+      <a
+        href="https://github.com/juanmaoxiongmaoQAQ/TeachIntent"
+        target="_blank"
+        rel="noreferrer"
+      >
+        GitHub <span aria-hidden="true">↗</span>
+      </a>
     </nav>
   );
 }

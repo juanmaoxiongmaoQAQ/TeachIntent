@@ -1,120 +1,70 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
-import type { WorkbenchResponse } from "./types/teachintent";
-
-const minimalWorkbench: WorkbenchResponse = {
-  example: {
-    id: "supportive-feedback",
-    title: "Supportive feedback",
-    description: "Recorded supportive case.",
-    recommended: false,
-  },
-  prompt_version: "v0.2",
-  input: {
-    schema_version: "1.0.0-rc.2",
-    output_language: "zh-CN",
-    instructional_content: {
-      content_anchor: "阅读图表时先确认横轴、纵轴、单位和图例。",
-    },
-    pedagogical_context: {
-      scenario: "学生完成了正确迁移。",
-    },
-    learner: {
-      level: "high_school",
-      knowledge_state: "successful_cross_domain_transfer",
-    },
-    pedagogical_intent: {
-      primary: "supportive_feedback",
-    },
-  },
-  speech_plan: {
-    schema_version: "1.0.0-rc.3",
-    verbal_plan: {
-      segments: [{ segment_id: "seg_01", text: "这个迁移做得很好。" }],
-    },
-    delivery_plan: {},
-  },
-  evaluation: {
-    available: true,
-    evaluator_version: "v0.1",
-    judge_prompt_version: "v0.1",
-    source_run_id: "20260901T093114Z",
-    critical_flags: [],
-    scores: {
-      pedagogical_intent_fidelity: {
-        score: 4,
-        evidence: [
-          {
-            source: "plan.verbal_plan.segments[0].text",
-            text: "这个迁移做得很好。",
-          },
-        ],
-        brief_justification: "Grounded supportive feedback.",
-      },
-    },
-  },
-  voice_realization: {
-    available: false,
-    mode: "recorded",
-    reason: "Recorded voice artifact unavailable.",
-    ab_invariants: {},
-    limitations: [],
-  },
-};
-
 beforeEach(() => {
   window.history.replaceState(null, "", "/");
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((url: string) => {
-      if (url === "/api/examples") {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify([
-              {
-                id: "supportive-feedback",
-                title: "Supportive feedback",
-                description: "Recorded supportive case.",
-                recommended: false,
-              },
-            ]),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          ),
-        );
-      }
-      if (url === "/api/examples/corrective-feedback") {
-        return Promise.resolve(
-          new Response(JSON.stringify(minimalWorkbench), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }),
-        );
-      }
-      return Promise.resolve(new Response("{}", { status: 404 }));
-    }),
-  );
+  vi.stubGlobal("fetch", vi.fn());
 });
-
-describe("App", () => {
-  it("shows Explore, Live Studio, and Intent Compare navigation", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await waitFor(() =>
-      expect(screen.getByText("Technical details")).toBeInTheDocument(),
-    );
-
-    await user.click(screen.getByRole("button", { name: /Live Studio/ }));
-
-    expect(screen.getByText("Build a teaching scenario")).toBeInTheDocument();
-    expect(screen.getByText("Generate with Hy3")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /Intent Compare/ }));
-
-    expect(screen.getByText("Build one teaching situation")).toBeInTheDocument();
-    expect(screen.getByText("Compare intents")).toBeInTheDocument();
+it("explains the product and exposes exactly the four public navigation entries", () => {
+  render(<App />);
+  expect(
+    screen.getByRole("heading", { name: "教学意图驱动的 AI 教学语音规划" }),
+  ).toBeInTheDocument();
+  const links = within(
+    screen.getByRole("navigation", { name: "主导航" }),
+  ).getAllByRole("link");
+  expect(
+    links.map((a) => [a.textContent?.trim(), a.getAttribute("href")]),
+  ).toEqual([
+    ["首页", "/"],
+    ["在线体验", "/studio"],
+    ["示例库", "/examples"],
+    ["GitHub ↗", "https://github.com/juanmaoxiongmaoQAQ/TeachIntent"],
+  ]);
+  expect(screen.getByRole("link", { name: "开始体验" })).toHaveAttribute(
+    "href",
+    "/studio",
+  );
+  expect(fetch).not.toHaveBeenCalled();
+});
+it("navigates with the primary CTA and browser history without an API call", async () => {
+  render(<App />);
+  await userEvent.setup().click(screen.getByRole("link", { name: "开始体验" }));
+  expect(window.location.pathname).toBe("/studio");
+  expect(
+    screen.getByRole("button", { name: "生成教学计划" }),
+  ).toBeInTheDocument();
+  act(() => {
+    window.history.replaceState(null, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   });
+  expect(screen.getByRole("link", { name: "开始体验" })).toBeInTheDocument();
+  expect(fetch).not.toHaveBeenCalled();
+});
+it.each([
+  ["/live", "/studio", "在线体验"],
+  ["/explore", "/examples", "示例库"],
+  ["/showcase", "/examples", "示例库"],
+  ["/compare", "/compare", "教学意图对比"],
+])("supports the direct route %s", (route, canonical, title) => {
+  window.history.replaceState(null, "", route);
+  render(<App />);
+  expect(
+    screen.getByRole("heading", { name: title, level: 1 }),
+  ).toBeInTheDocument();
+  expect(window.location.pathname).toBe(canonical);
+  expect(
+    within(screen.getByRole("navigation")).queryByRole("link", {
+      name: /对比/,
+    }),
+  ).not.toBeInTheDocument();
+});
+it("keeps unknown URLs recoverable", () => {
+  window.history.replaceState(null, "", "/missing");
+  render(<App />);
+  expect(screen.getByRole("link", { name: "返回首页" })).toHaveAttribute(
+    "href",
+    "/",
+  );
 });
